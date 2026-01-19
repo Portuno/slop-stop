@@ -1,0 +1,20 @@
+{
+  "name": "stop-slop",
+  "version": "1.0.0",
+  "description": "Community-driven curation layer that identifies and hides 'Slop' content",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.258",
+    "@types/node": "^20.10.6",
+    "esbuild": "^0.19.11",
+    "typescript": "^5.3.3"
+  }
+}

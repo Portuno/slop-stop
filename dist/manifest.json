@@ -1,0 +1,107 @@
+{
+  "manifest_version": 3,
+  "name": "Stop-Slop",
+  "version": "1.0.0",
+  "description": "Community-driven curation layer that identifies and hides 'Slop' content on Twitter, YouTube, LinkedIn, and the internet",
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://twitter.com/*",
+    "*://x.com/*",
+    "*://youtube.com/*",
+    "*://linkedin.com/*",
+    "*://www.linkedin.com/*",
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://twitter.com/*",
+        "*://x.com/*"
+      ],
+      "js": [
+        "content/content-main.js"
+      ],
+      "css": [
+        "content/content.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "*://youtube.com/*"
+      ],
+      "js": [
+        "content/content-main.js"
+      ],
+      "css": [
+        "content/content.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "*://linkedin.com/*",
+        "*://www.linkedin.com/*"
+      ],
+      "js": [
+        "content/content-main.js"
+      ],
+      "css": [
+        "content/content.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content/content-main.js"
+      ],
+      "css": [
+        "content/content.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false,
+      "exclude_matches": [
+        "*://twitter.com/*",
+        "*://x.com/*",
+        "*://youtube.com/*",
+        "*://linkedin.com/*",
+        "*://www.linkedin.com/*"
+      ]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Stop-Slop Settings"
+  },
+  "commands": {
+    "toggle-trash-mode": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Alt+S"
+      },
+      "description": "Toggle trash mode to report slop content"
+    },
+    "report-website": {
+      "suggested_key": {
+        "default": "Alt+U",
+        "mac": "Alt+U"
+      },
+      "description": "Report current website as slop"
+    }
+  }
+}

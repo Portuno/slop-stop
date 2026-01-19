@@ -1,0 +1,374 @@
+.slop-curtain {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  display: flex;
+  flex-direction: column;
+  /* Dark mode background - translucent overlay with better contrast */
+  background-color: rgba(0, 0, 0, 0.65) !important;
+  /* Backdrop blur to blur the tweet content behind */
+  backdrop-filter: blur(12px) brightness(0.9);
+  -webkit-backdrop-filter: blur(12px) brightness(0.9);
+  color: #ffffff !important;
+  padding: 1rem 1.25rem;
+  padding-bottom: 3.5rem; /* Space for button at bottom */
+  box-sizing: border-box;
+  z-index: 10000;
+  pointer-events: auto;
+  opacity: 1;
+  transition: opacity 0.3s ease-out;
+  overflow: hidden;
+  /* Border-radius will be set by the overlay container */
+}
+
+/* Responsive padding for smaller tweets */
+@media (max-height: 200px) {
+  .slop-curtain {
+    padding: 0.75rem 1rem;
+    padding-bottom: 2.5rem; /* Less space for button in small tweets */
+  }
+}
+
+.slop-curtain-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  text-align: center;
+  min-height: 0; /* Allow flex shrinking */
+  overflow: hidden;
+  position: relative;
+  z-index: 1; /* Ensure content is above background but below button */
+  max-height: 100%; /* Prevent content from overflowing */
+}
+
+/* Light mode support - check for X's theme attribute and classes */
+html[data-theme="light"] .slop-curtain,
+html[data-theme="light"] body .slop-curtain,
+body[data-theme="light"] .slop-curtain,
+html.light .slop-curtain,
+body.light .slop-curtain {
+  background: rgba(255, 255, 255, 0.9);
+  color: #000000;
+}
+
+/* Light mode support - system preference */
+@media (prefers-color-scheme: light) {
+  html:not([data-theme="dark"]) .slop-curtain,
+  body:not([data-theme="dark"]) .slop-curtain {
+    background: rgba(255, 255, 255, 0.9);
+    color: #000000;
+  }
+}
+
+.slop-curtain-headline {
+  font-size: 1.125rem;
+  font-weight: 800; /* Extra Bold */
+  margin: 0 0 0.375rem 0;
+  color: #ffffff !important;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  /* Responsive font size for smaller tweets */
+}
+
+@media (max-height: 200px) {
+  .slop-curtain-headline {
+    font-size: 1rem;
+    margin: 0 0 0.25rem 0;
+  }
+}
+
+.slop-curtain-subtext {
+  font-size: 0.8125rem;
+  margin: 0 0 0.75rem 0;
+  color: #71767b !important; /* Muted grey */
+  line-height: 1.3;
+  text-align: center;
+  max-width: 100%;
+  padding: 0 0.5rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  /* Responsive font size for smaller tweets */
+}
+
+@media (max-height: 200px) {
+  .slop-curtain-subtext {
+    font-size: 0.75rem;
+    margin: 0 0 0.5rem 0;
+    line-height: 1.2;
+  }
+}
+
+/* Light mode subtext color - check for X's theme attribute and classes */
+html[data-theme="light"] .slop-curtain-subtext,
+html[data-theme="light"] body .slop-curtain-subtext,
+body[data-theme="light"] .slop-curtain-subtext,
+html.light .slop-curtain-subtext,
+body.light .slop-curtain-subtext {
+  color: rgba(83, 100, 113, 1); /* Muted grey for light mode */
+}
+
+/* Light mode subtext color - system preference */
+@media (prefers-color-scheme: light) {
+  html:not([data-theme="dark"]) .slop-curtain-subtext,
+  body:not([data-theme="dark"]) .slop-curtain-subtext {
+    color: rgba(83, 100, 113, 1); /* Muted grey for light mode */
+  }
+}
+
+.slop-curtain-counter {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  background: rgba(113, 118, 123, 0.2);
+  color: rgba(113, 118, 123, 1);
+  border-radius: 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  z-index: 10002;
+  position: relative;
+  /* Responsive size for smaller tweets */
+}
+
+@media (max-height: 200px) {
+  .slop-curtain-counter {
+    font-size: 0.625rem;
+    padding: 0.1875rem 0.5rem;
+    margin-top: 0.375rem;
+  }
+}
+
+/* Light mode counter badge */
+html[data-theme="light"] .slop-curtain-counter,
+html[data-theme="light"] body .slop-curtain-counter,
+body[data-theme="light"] .slop-curtain-counter,
+html.light .slop-curtain-counter,
+body.light .slop-curtain-counter {
+  background: rgba(83, 100, 113, 0.15);
+  color: rgba(83, 100, 113, 1);
+}
+
+@media (prefers-color-scheme: light) {
+  html:not([data-theme="dark"]) .slop-curtain-counter,
+  body:not([data-theme="dark"]) .slop-curtain-counter {
+    background: rgba(83, 100, 113, 0.15);
+    color: rgba(83, 100, 113, 1);
+  }
+}
+
+.slop-curtain-show-button {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.75rem;
+  padding: 0 16px;
+  min-height: 32px;
+  height: 32px;
+  background-color: #ffffff !important;
+  color: #0f1419 !important;
+  border: none;
+  border-radius: 9999px; /* Pill shape with high border-radius */
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+  pointer-events: auto !important;
+  z-index: 10001 !important;
+  min-width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Responsive size for smaller tweets */
+}
+
+@media (max-height: 200px) {
+  .slop-curtain-show-button {
+    bottom: 0.5rem;
+    right: 0.5rem;
+    min-height: 28px;
+    height: 28px;
+    font-size: 0.8125rem;
+    padding: 0 12px;
+    min-width: 70px;
+  }
+}
+
+.slop-curtain-show-button:hover {
+  background-color: #e7e9ea !important;
+}
+
+.slop-curtain-show-button:focus {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.slop-curtain-show-button:active {
+  background-color: #d1d9dd !important;
+}
+
+.slop-confirmation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.slop-confirmation-modal {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.slop-confirmation-message {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 1.5rem 0;
+  color: #000000;
+  text-align: center;
+}
+
+.slop-confirmation-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.slop-confirmation-confirm,
+.slop-confirmation-cancel {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.slop-confirmation-confirm {
+  background: #1d9bf0;
+  color: #ffffff;
+}
+
+.slop-confirmation-confirm:hover {
+  background: #1a8cd8;
+}
+
+.slop-confirmation-confirm:focus {
+  outline: 2px solid #1d9bf0;
+  outline-offset: 2px;
+}
+
+.slop-confirmation-cancel {
+  background: #f7f9f9;
+  color: #000000;
+}
+
+.slop-confirmation-cancel:hover {
+  background: #e7e9ea;
+}
+
+.slop-confirmation-cancel:focus {
+  outline: 2px solid #536471;
+  outline-offset: 2px;
+}
+
+.slop-trash-cursor,
+.slop-trash-cursor *,
+body.slop-trash-cursor,
+body.slop-trash-cursor * {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path d="M2 4h12M5 4V2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-6 0v10a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4M6 7v6M10 7v6" stroke="%23000" stroke-width="1.5" stroke-linecap="round"/></svg>') 8 8, auto !important;
+}
+
+.slop-website-block-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.slop-website-block-content {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  text-align: center;
+}
+
+.slop-website-block-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  color: #000000;
+}
+
+.slop-website-block-message {
+  font-size: 1rem;
+  margin: 0 0 1.5rem 0;
+  color: #536471;
+  line-height: 1.5;
+}
+
+.slop-website-block-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.slop-website-block-button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.slop-website-block-return {
+  background: #1d9bf0;
+  color: #ffffff;
+}
+
+.slop-website-block-return:hover {
+  background: #1a8cd8;
+}
+
+.slop-website-block-continue {
+  background: #f7f9f9;
+  color: #000000;
+}
+
+.slop-website-block-continue:hover {
+  background: #e7e9ea;
+}
