@@ -1,5 +1,5 @@
 import { handleMessage } from './message-handler.js';
-import { Message } from '../shared/types.js';
+import { Message, MessageType } from '../shared/types.js';
 import { DEFAULT_REPORT_LIMIT_THRESHOLD, STORAGE_KEYS } from '../shared/constants.js';
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -14,6 +14,13 @@ chrome.runtime.onInstalled.addListener(async () => {
         },
       });
     }
+
+    // Create context menu item
+    chrome.contextMenus.create({
+      id: 'report-slop',
+      title: 'Report Slop',
+      contexts: ['page', 'selection', 'link', 'image'],
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[Slop-Stop] Error in onInstalled:', errorMessage);
@@ -87,5 +94,31 @@ chrome.commands.onCommand.addListener((command) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[Slop-Stop] Error in onCommand listener:', errorMessage);
+  }
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  try {
+    if (info.menuItemId === 'report-slop' && tab?.id) {
+      // Check if the tab URL is a valid web page
+      if (!isValidWebPage(tab.url)) {
+        return;
+      }
+
+      chrome.tabs.sendMessage(tab.id, {
+        type: MessageType.CONTEXT_MENU_REPORT_SLOP,
+      }).catch((error) => {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        // Only log unexpected errors
+        if (!errorMessage.includes('Receiving end does not exist') && 
+            !errorMessage.includes('Could not establish connection')) {
+          console.error('[Slop-Stop] Error sending context menu command to content script:', errorMessage);
+        }
+      });
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[Slop-Stop] Error in context menu handler:', errorMessage);
   }
 });

@@ -9,11 +9,10 @@
   min-height: 100% !important;
   display: flex;
   flex-direction: column;
-  /* Dark mode background - translucent overlay with better contrast */
+  /* Default background (overridden per-platform when needed) */
   background-color: rgba(0, 0, 0, 0.65) !important;
-  /* Backdrop blur to blur the tweet content behind */
-  backdrop-filter: blur(12px) brightness(0.9);
-  -webkit-backdrop-filter: blur(12px) brightness(0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: #ffffff !important;
   padding: 1rem 1.25rem;
   padding-bottom: 3.5rem; /* Space for button at bottom */
@@ -24,6 +23,54 @@
   transition: opacity 0.3s ease-out;
   overflow: hidden;
   /* Border-radius will be set by the overlay container */
+}
+
+.slop-curtain--website {
+  position: fixed;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: transparent !important;
+  backdrop-filter: blur(40px) brightness(0.3);
+  -webkit-backdrop-filter: blur(40px) brightness(0.3);
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.slop-curtain-gradient {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(20, 20, 20, 0.8) 0%, rgba(10, 10, 10, 0.95) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* YouTube: "security card" overlay inside thumbnail */
+.slop-curtain--youtube {
+  background: rgba(15, 15, 15, 0.8) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 14px 14px 48px 14px; /* leave space for Show button */
+}
+
+/* LinkedIn: glassmorphism compacto para posts colapsados */
+.slop-curtain--linkedin {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(243, 246, 248, 0.8) 100%
+  ) !important;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  color: #000000 !important;
+  padding: 0.875rem 1rem 2.25rem 1rem;
+  align-items: flex-start;
+  min-height: 0;
+  height: 100%;
 }
 
 /* Responsive padding for smaller tweets */
@@ -48,27 +95,51 @@
   max-height: 100%; /* Prevent content from overflowing */
 }
 
+.slop-curtain-content--website {
+  max-width: 720px;
+  width: 92%;
+  padding: 3rem 2.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.25rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  gap: 1.25rem;
+}
+
+.slop-curtain--linkedin .slop-curtain-content {
+  align-items: flex-start;
+  text-align: left;
+  justify-content: center;
+}
+
+.slop-curtain--youtube .slop-curtain-content {
+  gap: 8px;
+}
+
 /* Light mode support - check for X's theme attribute and classes */
-html[data-theme="light"] .slop-curtain,
-html[data-theme="light"] body .slop-curtain,
-body[data-theme="light"] .slop-curtain,
-html.light .slop-curtain,
-body.light .slop-curtain {
+html[data-theme="light"] .slop-curtain:not(.slop-curtain--twitter),
+html[data-theme="light"] body .slop-curtain:not(.slop-curtain--twitter),
+body[data-theme="light"] .slop-curtain:not(.slop-curtain--twitter),
+html.light .slop-curtain:not(.slop-curtain--twitter),
+body.light .slop-curtain:not(.slop-curtain--twitter) {
   background: rgba(255, 255, 255, 0.9);
   color: #000000;
 }
 
 /* Light mode support - system preference */
 @media (prefers-color-scheme: light) {
-  html:not([data-theme="dark"]) .slop-curtain,
-  body:not([data-theme="dark"]) .slop-curtain {
+  html:not([data-theme="dark"]) .slop-curtain:not(.slop-curtain--twitter),
+  body:not([data-theme="dark"]) .slop-curtain:not(.slop-curtain--twitter) {
     background: rgba(255, 255, 255, 0.9);
     color: #000000;
   }
 }
 
 .slop-curtain-headline {
-  font-size: 1.125rem;
+  /* 15px para igualar advertencias nativas de X */
+  font-size: 15px;
   font-weight: 800; /* Extra Bold */
   margin: 0 0 0.375rem 0;
   color: #ffffff !important;
@@ -78,6 +149,29 @@ body.light .slop-curtain {
   word-wrap: break-word;
   overflow-wrap: break-word;
   /* Responsive font size for smaller tweets */
+}
+
+.slop-curtain--website .slop-curtain-headline {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #ffffff !important;
+  letter-spacing: -0.01em;
+}
+
+.slop-curtain--linkedin .slop-curtain-headline {
+  font-size: 20px;
+  font-weight: 800;
+  color: #000000 !important;
+  line-height: 1.3;
+}
+
+.slop-curtain--youtube .slop-curtain-headline {
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.25;
+  color: #ffffff !important;
 }
 
 @media (max-height: 200px) {
@@ -90,7 +184,7 @@ body.light .slop-curtain {
 .slop-curtain-subtext {
   font-size: 0.8125rem;
   margin: 0 0 0.75rem 0;
-  color: #71767b !important; /* Muted grey */
+  color: #71767b !important; /* Muted grey nativo de X */
   line-height: 1.3;
   text-align: center;
   max-width: 100%;
@@ -98,6 +192,30 @@ body.light .slop-curtain {
   word-wrap: break-word;
   overflow-wrap: break-word;
   /* Responsive font size for smaller tweets */
+}
+
+.slop-curtain--website .slop-curtain-subtext {
+  font-size: 1rem;
+  color: #94a3b8 !important;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.slop-curtain--linkedin .slop-curtain-subtext {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #4a4a4a !important;
+  line-height: 1.4;
+}
+
+.slop-curtain--youtube .slop-curtain-subtext {
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 12px;
+  margin: 0;
+  padding: 0;
+  color: #aaaaaa !important;
+  line-height: 1.35;
+  max-width: 92%;
 }
 
 @media (max-height: 200px) {
@@ -109,18 +227,18 @@ body.light .slop-curtain {
 }
 
 /* Light mode subtext color - check for X's theme attribute and classes */
-html[data-theme="light"] .slop-curtain-subtext,
-html[data-theme="light"] body .slop-curtain-subtext,
-body[data-theme="light"] .slop-curtain-subtext,
-html.light .slop-curtain-subtext,
-body.light .slop-curtain-subtext {
+html[data-theme="light"] .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-subtext,
+html[data-theme="light"] body .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-subtext,
+body[data-theme="light"] .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-subtext,
+html.light .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-subtext,
+body.light .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-subtext {
   color: rgba(83, 100, 113, 1); /* Muted grey for light mode */
 }
 
 /* Light mode subtext color - system preference */
 @media (prefers-color-scheme: light) {
-  html:not([data-theme="dark"]) .slop-curtain-subtext,
-  body:not([data-theme="dark"]) .slop-curtain-subtext {
+  html:not([data-theme="dark"]) .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-subtext,
+  body:not([data-theme="dark"]) .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-subtext {
     color: rgba(83, 100, 113, 1); /* Muted grey for light mode */
   }
 }
@@ -128,9 +246,10 @@ body.light .slop-curtain-subtext {
 .slop-curtain-counter {
   display: inline-block;
   padding: 0.25rem 0.625rem;
-  background: rgba(113, 118, 123, 0.2);
-  color: rgba(113, 118, 123, 1);
-  border-radius: 0.75rem;
+  /* Fondo muy tenue tipo metadato oficial */
+  background: rgba(255, 255, 255, 0.05);
+  color: #71767b !important;
+  border-radius: 4px;
   font-size: 0.6875rem;
   font-weight: 700;
   margin-top: 0.5rem;
@@ -139,6 +258,43 @@ body.light .slop-curtain-subtext {
   z-index: 10002;
   position: relative;
   /* Responsive size for smaller tweets */
+}
+
+.slop-curtain--website .slop-curtain-counter {
+  padding: 0.6rem 1.1rem;
+  background: rgba(220, 38, 38, 0.2);
+  color: #f87171 !important;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.slop-curtain--linkedin .slop-curtain-counter {
+  position: absolute;
+  bottom: 0.875rem;
+  left: 1rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.75rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e0e0e0;
+  color: #4a4a4a !important;
+}
+
+.slop-curtain--youtube .slop-curtain-counter {
+  font-family: Roboto, Arial, sans-serif;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 0;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: rgba(45, 45, 45, 0.6);
+  color: #cfcfcf !important;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 @media (max-height: 200px) {
@@ -150,27 +306,115 @@ body.light .slop-curtain-subtext {
 }
 
 /* Light mode counter badge */
-html[data-theme="light"] .slop-curtain-counter,
-html[data-theme="light"] body .slop-curtain-counter,
-body[data-theme="light"] .slop-curtain-counter,
-html.light .slop-curtain-counter,
-body.light .slop-curtain-counter {
-  background: rgba(83, 100, 113, 0.15);
+html[data-theme="light"] .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-counter,
+html[data-theme="light"] body .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-counter,
+body[data-theme="light"] .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-counter,
+html.light .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-counter,
+body.light .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-counter {
+  background: rgba(15, 20, 25, 0.03);
   color: rgba(83, 100, 113, 1);
 }
 
 @media (prefers-color-scheme: light) {
-  html:not([data-theme="dark"]) .slop-curtain-counter,
-  body:not([data-theme="dark"]) .slop-curtain-counter {
+  html:not([data-theme="dark"]) .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-counter,
+  body:not([data-theme="dark"]) .slop-curtain:not(.slop-curtain--twitter) .slop-curtain-counter {
     background: rgba(83, 100, 113, 0.15);
     color: rgba(83, 100, 113, 1);
   }
 }
 
+/* ----------------------------- */
+/* Twitter/X native-like skins   */
+/* ----------------------------- */
+
+/* Default to dark-ish if no theme is detectable */
+.slop-curtain.slop-curtain--twitter {
+  background-color: rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(29, 155, 240, 0.22),
+    0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.slop-curtain.slop-curtain--twitter .slop-curtain-headline {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.slop-curtain.slop-curtain--twitter .slop-curtain-subtext {
+  color: rgba(231, 233, 234, 0.55) !important;
+}
+
+.slop-curtain.slop-curtain--twitter .slop-curtain-counter {
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(231, 233, 234, 0.6) !important;
+}
+
+.slop-curtain--website .slop-curtain-show-button {
+  display: none;
+}
+
+.slop-curtain.slop-curtain--twitter .slop-curtain-show-button {
+  background-color: rgb(29, 155, 240) !important;
+  color: #ffffff !important;
+}
+
+.slop-curtain.slop-curtain--twitter .slop-curtain-show-button:hover {
+  background-color: rgb(26, 140, 216) !important;
+}
+
+.slop-curtain.slop-curtain--twitter .slop-curtain-show-button:active {
+  background-color: rgb(23, 128, 197) !important;
+}
+
+/* Light mode (X "Default" theme) */
+html[data-theme="light"] .slop-curtain.slop-curtain--twitter,
+html[data-theme="light"] body .slop-curtain.slop-curtain--twitter,
+body[data-theme="light"] .slop-curtain.slop-curtain--twitter,
+html.light .slop-curtain.slop-curtain--twitter,
+body.light .slop-curtain.slop-curtain--twitter {
+  background-color: rgba(255, 255, 255, 0.72) !important;
+  border: 1px solid rgba(15, 20, 25, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(29, 155, 240, 0.18),
+    0 12px 30px rgba(15, 20, 25, 0.14);
+}
+
+html[data-theme="light"] .slop-curtain.slop-curtain--twitter .slop-curtain-headline,
+html[data-theme="light"] body .slop-curtain.slop-curtain--twitter .slop-curtain-headline,
+body[data-theme="light"] .slop-curtain.slop-curtain--twitter .slop-curtain-headline,
+html.light .slop-curtain.slop-curtain--twitter .slop-curtain-headline,
+body.light .slop-curtain.slop-curtain--twitter .slop-curtain-headline {
+  color: #0f1419 !important;
+  text-shadow: none;
+}
+
+html[data-theme="light"] .slop-curtain.slop-curtain--twitter .slop-curtain-subtext,
+html[data-theme="light"] body .slop-curtain.slop-curtain--twitter .slop-curtain-subtext,
+body[data-theme="light"] .slop-curtain.slop-curtain--twitter .slop-curtain-subtext,
+html.light .slop-curtain.slop-curtain--twitter .slop-curtain-subtext,
+body.light .slop-curtain.slop-curtain--twitter .slop-curtain-subtext {
+  color: rgba(83, 100, 113, 1) !important;
+}
+
+html[data-theme="light"] .slop-curtain.slop-curtain--twitter .slop-curtain-counter,
+html[data-theme="light"] body .slop-curtain.slop-curtain--twitter .slop-curtain-counter,
+body[data-theme="light"] .slop-curtain.slop-curtain--twitter .slop-curtain-counter,
+html.light .slop-curtain.slop-curtain--twitter .slop-curtain-counter,
+body.light .slop-curtain.slop-curtain--twitter .slop-curtain-counter {
+  background: rgba(15, 20, 25, 0.04);
+  border: 1px solid rgba(15, 20, 25, 0.06);
+  color: rgba(83, 100, 113, 1) !important;
+}
+
 .slop-curtain-show-button {
   position: absolute;
-  bottom: 0.75rem;
-  right: 0.75rem;
+  /* 16px desde el borde inferior/derecho como en X */
+  bottom: 1rem;
+  right: 1rem;
   padding: 0 16px;
   min-height: 32px;
   height: 32px;
@@ -191,6 +435,32 @@ body.light .slop-curtain-counter {
   /* Responsive size for smaller tweets */
 }
 
+.slop-curtain--linkedin .slop-curtain-show-button {
+  bottom: 0.875rem;
+  right: 1rem;
+  padding: 8px 16px;
+  min-height: 32px;
+  height: 32px;
+  background-color: #0a66c2 !important;
+  color: #ffffff !important;
+}
+
+.slop-curtain--youtube .slop-curtain-show-button {
+  bottom: 12px;
+  right: 12px;
+  padding: 0 14px;
+  min-height: 30px;
+  height: 30px;
+  min-width: 72px;
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  background-color: #0f0f0f !important;
+  color: #ffffff !important;
+  border: 1px solid #333333;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
 @media (max-height: 200px) {
   .slop-curtain-show-button {
     bottom: 0.5rem;
@@ -207,13 +477,119 @@ body.light .slop-curtain-counter {
   background-color: #e7e9ea !important;
 }
 
+.slop-curtain--youtube .slop-curtain-show-button:hover {
+  background-color: #1a1a1a !important;
+}
+
 .slop-curtain-show-button:focus {
   outline: 2px solid #ffffff;
   outline-offset: 2px;
 }
 
+.slop-curtain--youtube .slop-curtain-show-button:focus {
+  outline: 2px solid rgba(62, 166, 255, 0.9);
+  outline-offset: 2px;
+}
+
 .slop-curtain-show-button:active {
   background-color: #d1d9dd !important;
+}
+
+.slop-curtain--youtube .slop-curtain-show-button:active {
+  background-color: #202020 !important;
+}
+
+.slop-curtain-icon {
+  font-size: 3.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.2));
+}
+
+.slop-curtain-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.slop-curtain-button {
+  padding: 0.9rem 2.1rem;
+  border-radius: 9999px;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 200px;
+  border: none;
+}
+
+.slop-curtain-button--primary {
+  background: #ffffff;
+  color: #0f1419;
+  box-shadow: 0 12px 28px rgba(255, 255, 255, 0.18);
+}
+
+.slop-curtain-button--primary:hover {
+  background: #f1f5f9;
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(255, 255, 255, 0.22);
+}
+
+.slop-curtain-button--primary:active {
+  transform: translateY(0);
+}
+
+.slop-curtain-button--primary:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+.slop-curtain-button--secondary {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.slop-curtain-button--secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.slop-curtain-button--secondary:active {
+  transform: translateY(0);
+}
+
+.slop-curtain-button--secondary:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .slop-curtain-content--website {
+    width: 95%;
+    padding: 2.4rem 1.6rem;
+  }
+
+  .slop-curtain--website .slop-curtain-headline {
+    font-size: 1.75rem;
+  }
+
+  .slop-curtain-icon {
+    font-size: 3rem;
+  }
+
+  .slop-curtain-button {
+    min-width: 100%;
+    width: 100%;
+    font-size: 0.98rem;
+  }
+
+  .slop-curtain-buttons {
+    flex-direction: column;
+  }
 }
 
 .slop-confirmation-overlay {
@@ -222,75 +598,108 @@ body.light .slop-curtain-counter {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 999999;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .slop-confirmation-modal {
-  background: #ffffff;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  max-width: 400px;
-  width: 90%;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  background: rgba(25, 25, 25, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 1.75rem 1.5rem 1.5rem 1.5rem;
+  max-width: 420px;
+  width: 92%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: slop-confirmation-in 0.2s ease-out forwards;
+  transform: translateY(10px);
+  opacity: 0;
 }
 
-.slop-confirmation-message {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0 0 1.5rem 0;
-  color: #000000;
+.slop-confirmation-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 0.75rem auto;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
+}
+
+.slop-confirmation-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0 0 1.25rem 0;
+  color: #ffffff;
   text-align: center;
+  letter-spacing: -0.01em;
 }
 
 .slop-confirmation-buttons {
   display: flex;
   gap: 0.75rem;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .slop-confirmation-confirm,
 .slop-confirmation-cancel {
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 700;
+  padding: 0.7rem 1.25rem;
+  border-radius: 9999px;
+  font-size: 1rem;
+  font-weight: 800;
   cursor: pointer;
-  border: none;
+  border: 1px solid transparent;
   transition: all 0.2s;
 }
 
 .slop-confirmation-confirm {
-  background: #1d9bf0;
-  color: #ffffff;
+  background: #ffffff;
+  color: #0f1419;
 }
 
 .slop-confirmation-confirm:hover {
-  background: #1a8cd8;
+  background: #e7e9ea;
 }
 
 .slop-confirmation-confirm:focus {
-  outline: 2px solid #1d9bf0;
+  outline: 2px solid #ffffff;
   outline-offset: 2px;
 }
 
 .slop-confirmation-cancel {
-  background: #f7f9f9;
-  color: #000000;
+  background: transparent;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 .slop-confirmation-cancel:hover {
-  background: #e7e9ea;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .slop-confirmation-cancel:focus {
-  outline: 2px solid #536471;
+  outline: 2px solid rgba(255, 255, 255, 0.6);
   outline-offset: 2px;
+}
+
+@keyframes slop-confirmation-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .slop-trash-cursor,
@@ -304,71 +713,162 @@ body.slop-trash-cursor * {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
+  width: 100vw;
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 999999;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(40px) brightness(0.3);
+  -webkit-backdrop-filter: blur(40px) brightness(0.3);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.slop-website-block-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(20, 20, 20, 0.8) 0%, rgba(10, 10, 10, 0.95) 100%);
+  pointer-events: none;
 }
 
 .slop-website-block-content {
-  background: #ffffff;
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 1rem;
-  padding: 2rem;
-  max-width: 500px;
+  padding: 3rem 2.5rem;
+  max-width: 600px;
   width: 90%;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   text-align: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.slop-website-block-icon {
+  font-size: 4rem;
+  margin: 0 0 1.5rem 0;
+  line-height: 1;
+  filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.2));
 }
 
 .slop-website-block-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0 0 1rem 0;
-  color: #000000;
+  font-size: 2.75rem;
+  font-weight: 800;
+  margin: 0 0 1.25rem 0;
+  color: #ffffff;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
 }
 
 .slop-website-block-message {
-  font-size: 1rem;
-  margin: 0 0 1.5rem 0;
-  color: #536471;
-  line-height: 1.5;
+  font-size: 1.3rem;
+  margin: 0 0 2.25rem 0;
+  color: rgba(231, 233, 234, 0.82);
+  line-height: 1.65;
+}
+
+.slop-website-block-counter {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: rgba(220, 38, 38, 0.2);
+  color: #f87171;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin: 0 0 2rem 0;
+  border: 1px solid rgba(220, 38, 38, 0.3);
 }
 
 .slop-website-block-buttons {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .slop-website-block-button {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 700;
+  padding: 1.15rem 2.5rem;
+  border-radius: 9999px;
+  font-size: 1.2rem;
+  font-weight: 800;
   cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 260px;
+  min-height: 56px;
   border: none;
-  transition: all 0.2s;
 }
 
 .slop-website-block-return {
   background: #1d9bf0;
   color: #ffffff;
+  box-shadow: 0 10px 24px rgba(29, 155, 240, 0.25);
 }
 
 .slop-website-block-return:hover {
   background: #1a8cd8;
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(29, 155, 240, 0.28);
+}
+
+.slop-website-block-return:active {
+  transform: translateY(0);
+}
+
+.slop-website-block-return:focus {
+  outline: 2px solid rgba(29, 155, 240, 0.9);
+  outline-offset: 2px;
 }
 
 .slop-website-block-continue {
-  background: #f7f9f9;
-  color: #000000;
+  background: #1d9bf0;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 10px 24px rgba(29, 155, 240, 0.25);
 }
 
 .slop-website-block-continue:hover {
-  background: #e7e9ea;
+  background: #1a8cd8;
+  transform: translateY(-1px);
+}
+
+.slop-website-block-continue:active {
+  transform: translateY(0);
+}
+
+.slop-website-block-continue:focus {
+  outline: 2px solid rgba(29, 155, 240, 0.9);
+  outline-offset: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .slop-website-block-content {
+    padding: 2rem 1.5rem;
+    max-width: 95%;
+  }
+
+  .slop-website-block-title {
+    font-size: 2.25rem;
+  }
+
+  .slop-website-block-icon {
+    font-size: 3rem;
+  }
+
+  .slop-website-block-button {
+    min-width: 100%;
+    width: 100%;
+    min-height: 52px;
+    font-size: 1.1rem;
+  }
+
+  .slop-website-block-buttons {
+    flex-direction: column;
+  }
 }

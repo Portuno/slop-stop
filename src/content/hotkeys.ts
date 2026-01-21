@@ -1,6 +1,7 @@
 import { createConfirmationModal, removeConfirmationModal } from './confirmation-modal';
 import { MessageType } from '../shared/types';
 import { PlatformAdapter } from '../shared/types';
+import { findLinkedInPostContainer } from './linkedin-post-finder';
 
 export interface HotkeyState {
   isTrashMode: boolean;
@@ -15,7 +16,7 @@ let hotkeyState: HotkeyState = {
 export const initializeHotkeys = (
   adapter: PlatformAdapter,
   onReportSlop: (itemId: string, element: HTMLElement) => Promise<void>,
-  onReportWebsite: () => Promise<{ shouldBlock: boolean }>
+  onReportWebsite: () => Promise<{ shouldBlock: boolean; reportCount: number }>
 ): () => void => {
   const handleKeyDown = async (e: KeyboardEvent) => {
     if (e.altKey && e.key === 's' && !e.ctrlKey && !e.metaKey) {
@@ -64,101 +65,11 @@ const enterTrashMode = (
     
     const selector = adapter.getItemSelector();
     
-    // For LinkedIn, prioritize finding individual posts, not the feed container
-    // Start by looking for the most specific selectors first
+    // For LinkedIn, prioritize finding individual posts, not the feed container.
     let item: HTMLElement | null = null;
     
     if (adapter.getPlatformName() === 'linkedin') {
-      // LinkedIn: First try to use getCurrentItems to find the complete post container
-      // This ensures we get the full post, not just sub-elements
-      const allItems = adapter.getCurrentItems();
-      
-      // #region agent log
-      const logData4 = {location:'hotkeys.ts:71',message:'Using getCurrentItems for LinkedIn',data:{allItemsCount:allItems.length,targetTagName:target.tagName,timestamp:Date.now(),sessionId:'debug-session',runId:'run6',hypothesisId:'E'}};
-      fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData4)}).catch(()=>{});
-      // #endregion
-      
-      // Find which post container contains the click target
-      for (const potentialItem of allItems) {
-        // Skip if it's the main feed container
-        if (potentialItem.tagName === 'MAIN' || potentialItem.id === 'workspace') {
-          continue;
-        }
-        
-        // Check if target is inside this potential post
-        if (potentialItem.contains(target)) {
-          item = potentialItem;
-          
-          // #region agent log
-          const logData5 = {location:'hotkeys.ts:87',message:'Found item by getCurrentItems',data:{itemTagName:item.tagName,itemClassName:item.className?.substring(0,50),itemId:item.id?.substring(0,30),textLength:item.textContent?.length,timestamp:Date.now(),sessionId:'debug-session',runId:'run6',hypothesisId:'E'}};
-          fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData5)}).catch(()=>{});
-          // #endregion
-          
-          break;
-        }
-      }
-      
-      // Fallback: Walk up the DOM tree if getCurrentItems didn't find anything
-      if (!item) {
-        let current: HTMLElement | null = target;
-        let depth = 0;
-        
-        while (current && depth < 20) {
-          // Skip if it's the main feed container
-          if (current.tagName === 'MAIN' || current.id === 'workspace') {
-            current = current.parentElement;
-            depth++;
-            continue;
-          }
-          
-          // Check if current element looks like a post using structure-based criteria
-          const textLength = current.textContent?.length || 0;
-          const buttons = current.querySelectorAll('button, [role="button"]');
-          const buttonsCount = buttons.length;
-          const images = current.querySelectorAll('img');
-          const imagesCount = images.length;
-          const childrenCount = current.children.length;
-          
-          // Check for LinkedIn-specific engagement buttons
-          const hasEngagementButtons = Array.from(buttons).some(btn => {
-            const btnText = (btn.textContent || '').toLowerCase();
-            return btnText.includes('like') || btnText.includes('comentar') || 
-                   btnText.includes('comment') || btnText.includes('share') ||
-                   btnText.includes('compartir') || btnText.includes('recomendar');
-          });
-          
-          // Check for profile images
-          const hasProfileImage = Array.from(images).some(img => {
-            const alt = (img.getAttribute('alt') || '').toLowerCase();
-            return alt.includes('profile') || alt.includes('avatar') || alt.includes('member');
-          });
-          
-          const rect = current.getBoundingClientRect();
-          const hasMinimumHeight = rect.height >= 150;
-          
-          // Post characteristics matching adapter logic
-          const isPost = 
-            textLength >= 50 && textLength <= 5000 &&
-            (hasEngagementButtons || hasProfileImage) &&
-            (childrenCount >= 2 || imagesCount > 0) &&
-            (hasMinimumHeight || depth <= 2) &&
-            (current.tagName === 'DIV' || current.tagName === 'SECTION' || current.tagName === 'ARTICLE');
-          
-          if (isPost) {
-            item = current;
-            
-            // #region agent log
-            const logData2 = {location:'hotkeys.ts:130',message:'Found item by DOM walk (fallback)',data:{itemTagName:item.tagName,itemClassName:item.className?.substring(0,50),itemId:item.id?.substring(0,30),textLength:textLength,buttonsCount:buttonsCount,hasEngagementButtons:hasEngagementButtons,depth:depth,timestamp:Date.now(),sessionId:'debug-session',runId:'run6',hypothesisId:'E'}};
-            fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData2)}).catch(()=>{});
-            // #endregion
-            
-            break;
-          }
-          
-          current = current.parentElement;
-          depth++;
-        }
-      }
+      item = findLinkedInPostContainer(target, adapter);
     } else {
       // For other platforms, use the original logic
       item = target.closest(selector) as HTMLElement;
@@ -248,7 +159,7 @@ const exitTrashMode = (): void => {
 };
 
 const handleReportWebsite = async (
-  onReportWebsite: () => Promise<{ shouldBlock: boolean }>
+  onReportWebsite: () => Promise<{ shouldBlock: boolean; reportCount: number }>
 ): Promise<void> => {
   const modal = createConfirmationModal({
     message: 'Mark this website as SLOP?',
@@ -257,7 +168,7 @@ const handleReportWebsite = async (
       const result = await onReportWebsite();
 
       if (result.shouldBlock) {
-        showWebsiteBlockModal();
+        showWebsiteBlockModal(result.reportCount);
       }
     },
     onCancel: () => {
@@ -269,47 +180,100 @@ const handleReportWebsite = async (
   document.body.appendChild(modal);
 };
 
-const showWebsiteBlockModal = (): void => {
+const showWebsiteBlockModal = (reportCount: number): void => {
   const overlay = document.createElement('div');
   overlay.className = 'slop-website-block-modal';
+
+  // Radial gradient overlay layer
+  const gradientOverlay = document.createElement('div');
+  gradientOverlay.className = 'slop-website-block-gradient';
 
   const content = document.createElement('div');
   content.className = 'slop-website-block-content';
 
+  // Warning icon
+  const iconContainer = document.createElement('div');
+  iconContainer.className = 'slop-website-block-icon';
+  iconContainer.innerHTML = '⚠️';
+  iconContainer.setAttribute('aria-hidden', 'true');
+
   const title = document.createElement('h2');
   title.className = 'slop-website-block-title';
-  title.textContent = 'Website Marked as Slop';
+  title.textContent = 'Access Restricted: Community-Flagged Slop';
 
   const message = document.createElement('p');
   message.className = 'slop-website-block-message';
   message.textContent =
-    'This website has been flagged by the community as containing slop content. You can return to safety or continue anyway.';
+    'Human curators have identified this entire website as a primary source of AI-generated filler or low-quality content.';
+
+  // Report counter badge
+  const counterBadge = document.createElement('div');
+  counterBadge.className = 'slop-website-block-counter';
+  counterBadge.textContent = `[${reportCount}] Humans have flagged this domain as Slop`;
 
   const buttons = document.createElement('div');
   buttons.className = 'slop-website-block-buttons';
 
   const returnButton = document.createElement('button');
   returnButton.className = 'slop-website-block-button slop-website-block-return';
-  returnButton.textContent = 'Return';
-  returnButton.addEventListener('click', () => {
+  returnButton.textContent = 'Take me back to safety';
+  returnButton.setAttribute('aria-label', 'Return to previous page');
+  returnButton.setAttribute('tabindex', '0');
+  
+  const handleReturn = () => {
     window.history.back();
     overlay.remove();
+  };
+  
+  returnButton.addEventListener('click', handleReturn);
+  returnButton.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleReturn();
+    }
   });
 
   const continueButton = document.createElement('button');
   continueButton.className = 'slop-website-block-button slop-website-block-continue';
-  continueButton.textContent = 'Continue Anyway';
-  continueButton.addEventListener('click', () => {
+  continueButton.textContent = 'Continue anyway';
+  continueButton.setAttribute('aria-label', 'Continue to website anyway');
+  continueButton.setAttribute('tabindex', '0');
+  
+  const handleContinue = () => {
     overlay.remove();
+  };
+  
+  continueButton.addEventListener('click', handleContinue);
+  continueButton.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleContinue();
+    }
   });
 
   buttons.appendChild(returnButton);
   buttons.appendChild(continueButton);
 
+  content.appendChild(iconContainer);
   content.appendChild(title);
   content.appendChild(message);
+  content.appendChild(counterBadge);
   content.appendChild(buttons);
+  
+  overlay.appendChild(gradientOverlay);
   overlay.appendChild(content);
 
   document.body.appendChild(overlay);
+  
+  // Prevent scrolling and interaction with background
+  document.body.style.overflow = 'hidden';
+  
+  // Cleanup on remove
+  const observer = new MutationObserver(() => {
+    if (!overlay.isConnected) {
+      document.body.style.overflow = '';
+      observer.disconnect();
+    }
+  });
+  observer.observe(document.body, { childList: true });
 };

@@ -9,6 +9,7 @@ import {
   SlopStatusResponse,
   Settings,
   Platform,
+  SubmitFeedbackPayload,
 } from '../shared/types.js';
 import { DEFAULT_REPORT_LIMIT_THRESHOLD, STORAGE_KEYS } from '../shared/constants.js';
 
@@ -211,6 +212,46 @@ export const handleMessage = async (
         await setSettings(newSettings);
         sendResponse({ success: true });
         return true;
+      }
+
+      case MessageType.SUBMIT_FEEDBACK: {
+        try {
+          const payload = message.payload as SubmitFeedbackPayload;
+          const trimmedFeedback = (payload.feedback || '').trim();
+
+          if (!trimmedFeedback) {
+            sendResponse({ success: false, error: 'Feedback cannot be empty' });
+            return true;
+          }
+
+          let supabase;
+          try {
+            supabase = await getSupabaseClient();
+          } catch (error) {
+            sendResponse({ success: false, error: 'Supabase is not configured' });
+            return true;
+          }
+
+          const reporterHash = await getReporterHash();
+          const { error } = await supabase.from('slop_feedback').insert({
+            feedback: trimmedFeedback,
+            reporter_hash: reporterHash,
+          });
+
+          if (error) {
+            const errorMessage = error.message || 'Unknown error';
+            const errorDetails = error.details ? ` Details: ${error.details}` : '';
+            sendResponse({ success: false, error: errorMessage + errorDetails });
+            return true;
+          }
+
+          sendResponse({ success: true });
+          return true;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          sendResponse({ success: false, error: errorMessage });
+          return true;
+        }
       }
 
       default:

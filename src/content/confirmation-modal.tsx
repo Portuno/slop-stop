@@ -10,12 +10,22 @@ export const createConfirmationModal = (options: ConfirmationModalOptions): HTML
   const overlay = document.createElement('div');
   overlay.className = 'slop-confirmation-overlay';
   overlay.setAttribute('data-slop-modal', 'true');
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
 
   const modal = document.createElement('div');
   modal.className = 'slop-confirmation-modal';
 
-  const message = document.createElement('p');
-  message.className = 'slop-confirmation-message';
+  const icon = document.createElement('div');
+  icon.className = 'slop-confirmation-icon';
+  icon.innerHTML = `
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+      <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-7 0v10a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V7M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
+
+  const message = document.createElement('h2');
+  message.className = 'slop-confirmation-title';
   message.textContent = options.message;
 
   const buttons = document.createElement('div');

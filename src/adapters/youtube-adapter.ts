@@ -17,26 +17,157 @@ export class YouTubeAdapter extends BaseAdapter {
   }
 
   getItemId(element: HTMLElement): string | null {
+    // Strategy 1: Check data-video-id attribute on the element itself (most reliable)
     const videoId = element.getAttribute('data-video-id');
-    if (videoId) {
+    if (videoId && videoId.length >= 11) {
       return videoId;
     }
 
-    const link = element.querySelector<HTMLAnchorElement>('a[href*="/watch?v="]');
-    if (link) {
-      const url = new URL(link.href);
-      const v = url.searchParams.get('v');
-      if (v) {
-        return v;
+    // Strategy 2: Check for video ID in ytd-thumbnail elements FIRST (most reliable link location)
+    // YouTube's thumbnail component contains the primary video link
+    const thumbnails = element.querySelectorAll('ytd-thumbnail, yt-img-shadow');
+    for (const thumbnail of Array.from(thumbnails)) {
+      const thumbnailLink = thumbnail.querySelector<HTMLAnchorElement>('a[href*="/watch"], a[href*="/shorts/"]');
+      if (thumbnailLink) {
+        const href = thumbnailLink.href;
+        
+        if (href.includes('/watch')) {
+          try {
+            const url = new URL(href);
+            const v = url.searchParams.get('v');
+            if (v && v.length >= 11) {
+              return v;
+            }
+          } catch (e) {
+            // If URL parsing fails, try regex fallback
+            const match = href.match(/[?&]v=([^&]+)/);
+            if (match && match[1] && match[1].length >= 11) {
+              return match[1];
+            }
+          }
+        }
+        
+        if (href.includes('/shorts/')) {
+          const match = href.match(/\/shorts\/([^/?&]+)/);
+          if (match && match[1] && match[1].length >= 11) {
+            return match[1];
+          }
+        }
       }
     }
 
-    const shortLink = element.querySelector<HTMLAnchorElement>('a[href*="/shorts/"]');
-    if (shortLink) {
-      const match = shortLink.href.match(/\/shorts\/([^/?]+)/);
-      if (match) {
-        return match[1];
+    // Strategy 3: Check for video ID in the main video title/link (usually in ytd-video-meta-block or similar)
+    // Look for links that are likely the main video link (not channel links, etc.)
+    const mainVideoLinks = element.querySelectorAll<HTMLAnchorElement>('a[href*="/watch"], a[href*="/shorts/"]');
+    const videoIds = new Set<string>();
+    
+    for (const link of Array.from(mainVideoLinks)) {
+      const href = link.href;
+      
+      // Skip channel links and other non-video links
+      if (href.includes('/channel/') || href.includes('/user/') || href.includes('/c/') || href.includes('/@')) {
+        continue;
       }
+      
+      let foundId: string | null = null;
+      
+      if (href.includes('/watch')) {
+        try {
+          const url = new URL(href);
+          const v = url.searchParams.get('v');
+          if (v && v.length >= 11) {
+            foundId = v;
+          }
+        } catch (e) {
+          const match = href.match(/[?&]v=([^&]+)/);
+          if (match && match[1] && match[1].length >= 11) {
+            foundId = match[1];
+          }
+        }
+      } else if (href.includes('/shorts/')) {
+        const match = href.match(/\/shorts\/([^/?&]+)/);
+        if (match && match[1] && match[1].length >= 11) {
+          foundId = match[1];
+        }
+      }
+      
+      if (foundId) {
+        videoIds.add(foundId);
+      }
+    }
+    
+    // If we found exactly one unique video ID, use it
+    // If multiple IDs found, prioritize the one that appears in thumbnail or title area
+    if (videoIds.size === 1) {
+      return Array.from(videoIds)[0];
+    } else if (videoIds.size > 1) {
+      // Multiple video IDs found - this shouldn't happen for a single video element
+      // Try to find the one in the title/link area (not in related videos)
+      const titleLink = element.querySelector<HTMLAnchorElement>('a#video-title, a[href*="/watch"]:not([href*="/channel"]):not([href*="/user"]):not([href*="/c/"]):not([href*="/@"])');
+      if (titleLink) {
+        const href = titleLink.href;
+        if (href.includes('/watch')) {
+          try {
+            const url = new URL(href);
+            const v = url.searchParams.get('v');
+            if (v && v.length >= 11 && videoIds.has(v)) {
+              return v;
+            }
+          } catch (e) {
+            const match = href.match(/[?&]v=([^&]+)/);
+            if (match && match[1] && match[1].length >= 11 && videoIds.has(match[1])) {
+              return match[1];
+            }
+          }
+        }
+      }
+      // If we can't determine which one, return the first one (better than null)
+      return Array.from(videoIds)[0];
+    }
+
+    // Strategy 4: Search in parent elements (up to 3 levels) for video ID
+    // This handles cases where the video ID might be on a parent container
+    let parent = element.parentElement;
+    let depth = 0;
+    while (parent && depth < 3) {
+      const parentVideoId = parent.getAttribute('data-video-id');
+      if (parentVideoId && parentVideoId.length >= 11) {
+        return parentVideoId;
+      }
+      
+      // Check parent's thumbnail links
+      const parentThumbnails = parent.querySelectorAll('ytd-thumbnail, yt-img-shadow');
+      for (const thumbnail of Array.from(parentThumbnails)) {
+        const thumbnailLink = thumbnail.querySelector<HTMLAnchorElement>('a[href*="/watch"], a[href*="/shorts/"]');
+        if (thumbnailLink) {
+          const href = thumbnailLink.href;
+          
+          if (href.includes('/watch')) {
+            try {
+              const url = new URL(href);
+              const v = url.searchParams.get('v');
+              if (v && v.length >= 11) {
+                return v;
+              }
+            } catch (e) {
+              const match = href.match(/[?&]v=([^&]+)/);
+              if (match && match[1] && match[1].length >= 11) {
+                return match[1];
+              }
+            }
+          }
+          
+          if (href.includes('/shorts/')) {
+            const match = href.match(/\/shorts\/([^/?&]+)/);
+            if (match && match[1] && match[1].length >= 11) {
+              return match[1];
+            }
+          }
+        }
+      }
+      
+      parent = parent.parentElement;
+      depth++;
     }
 
     return null;

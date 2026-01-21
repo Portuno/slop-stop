@@ -6,6 +6,7 @@ import { PlatformAdapter, MessageType, Platform } from '../shared/types';
 import { detectPlatform } from '../shared/utils';
 import { createSlopCurtain } from './slop-curtain';
 import { initializeHotkeys } from './hotkeys';
+import { findLinkedInPostContainer } from './linkedin-post-finder';
 
 interface ProcessedItem {
   element: HTMLElement;
@@ -18,6 +19,7 @@ const processedItems = new Map<HTMLElement, ProcessedItem>();
 const processingItems = new Set<HTMLElement>(); // Track items currently being processed
 let currentAdapter: PlatformAdapter | null = null;
 let isExtensionContextValid = true;
+let lastRightClickedElement: HTMLElement | null = null; // Store element for context menu report
 
 // Helper function to find processed item by itemId
 const findProcessedItemByItemId = (itemId: string): ProcessedItem | null => {
@@ -193,9 +195,9 @@ const reportSlop = async (itemId: string, platform: Platform): Promise<void> => 
   });
 };
 
-const reportWebsite = async (): Promise<{ shouldBlock: boolean }> => {
+const reportWebsite = async (): Promise<{ shouldBlock: boolean; reportCount: number }> => {
   if (!isExtensionContextValid) {
-    return { shouldBlock: false };
+    return { shouldBlock: false, reportCount: 0 };
   }
   
   return new Promise((resolve) => {
@@ -212,17 +214,17 @@ const reportWebsite = async (): Promise<{ shouldBlock: boolean }> => {
             } else {
               console.error('Error reporting website:', chrome.runtime.lastError);
             }
-            resolve({ shouldBlock: false });
+            resolve({ shouldBlock: false, reportCount: 0 });
             return;
           }
-          resolve(response || { shouldBlock: false });
+          resolve(response || { shouldBlock: false, reportCount: 0 });
         }
       );
     } catch (error) {
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
         handleContextInvalidated();
       }
-      resolve({ shouldBlock: false });
+      resolve({ shouldBlock: false, reportCount: 0 });
     }
   });
 };
@@ -245,7 +247,21 @@ const processItem = async (element: HTMLElement, adapter: PlatformAdapter, force
   fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData2)}).catch(()=>{});
   // #endregion
   
-  if (!itemId) {
+  // Validate itemId: must exist and not be empty
+  if (!itemId || itemId.trim().length === 0) {
+    console.warn('[Slop-Stop] Invalid itemId (empty or null):', { itemId, platform: adapter.getPlatformName(), elementTagName: element.tagName });
+    return;
+  }
+  
+  // For YouTube, validate that itemId is at least 11 characters (YouTube video IDs are 11 chars)
+  if (adapter.getPlatformName() === 'youtube' && itemId.length < 11) {
+    console.warn('[Slop-Stop] Invalid YouTube video ID (too short):', { 
+      itemId, 
+      length: itemId.length, 
+      platform: adapter.getPlatformName(),
+      elementTagName: element.tagName,
+      elementClassName: element.className?.substring(0, 50)
+    });
     return;
   }
 
@@ -255,9 +271,24 @@ const processItem = async (element: HTMLElement, adapter: PlatformAdapter, force
     if (existingItemByItemId) {
       // If the existing element is different but connected, update the map to use current element
       if (existingItemByItemId.element !== element && element.isConnected) {
+        // Remove old element from map
         processedItems.delete(existingItemByItemId.element);
+        // Update the existing item to use the new element
+        existingItemByItemId.element = element;
+        // Add to map with new element as key
         processedItems.set(element, existingItemByItemId);
+        
+        // Debug logging for YouTube
+        if (adapter.getPlatformName() === 'youtube') {
+          console.log('[Slop-Stop] YouTube: Updated processed item element:', {
+            itemId,
+            oldElementTagName: existingItemByItemId.element.tagName,
+            newElementTagName: element.tagName,
+            hasOverlay: !!existingItemByItemId.overlay
+          });
+        }
       }
+      // Always return if we found an existing item with this itemId (don't reprocess)
       return;
     }
   }
@@ -299,6 +330,18 @@ const processItem = async (element: HTMLElement, adapter: PlatformAdapter, force
   fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData3)}).catch(()=>{});
   // #endregion
 
+  // Debug logging for YouTube to track slop status checking
+  if (platform === 'youtube') {
+    console.log('[Slop-Stop] YouTube slop status check:', {
+      itemId,
+      isSlop: status.isSlop,
+      reportCount: status.reportCount,
+      forceOverlay,
+      elementTagName: element.tagName,
+      elementClassName: element.className?.substring(0, 50)
+    });
+  }
+
   // If forcing overlay (e.g., after reporting slop), create it even if status hasn't updated yet
   if (!status.isSlop && !forceOverlay) {
     return;
@@ -325,6 +368,7 @@ const processItem = async (element: HTMLElement, adapter: PlatformAdapter, force
   
   const curtain = createSlopCurtain({
     reportCount: reportCount,
+    platform,
     onShow: () => {
       const item = processedItems.get(element);
       if (!item || item.isShowing) {
@@ -385,6 +429,23 @@ const processItem = async (element: HTMLElement, adapter: PlatformAdapter, force
         (media as HTMLElement).style.removeProperty('pointer-events');
       });
       
+      // Restore element overflow if we modified it
+      const originalOverflow = element.getAttribute('data-slop-original-overflow');
+      if (originalOverflow !== null) {
+        // Check if there are other overlays in this element that need overflow hidden
+        const hasOtherOverlays = Array.from(processedItems.values()).some(
+          i => i.overlay && i.element === element && i !== item
+        );
+        if (!hasOtherOverlays) {
+          if (originalOverflow === '') {
+            element.style.removeProperty('overflow');
+          } else {
+            element.style.overflow = originalOverflow;
+          }
+          element.removeAttribute('data-slop-original-overflow');
+        }
+      }
+      
       // Restore element position if we modified it
       const computedStyle = window.getComputedStyle(element);
       if (element.style.position === 'relative' && computedStyle.position === 'relative') {
@@ -430,6 +491,17 @@ const processItem = async (element: HTMLElement, adapter: PlatformAdapter, force
     overlay,
     isShowing: false,
   });
+  
+  // Debug logging for YouTube to track overlay creation
+  if (platform === 'youtube') {
+    console.log('[Slop-Stop] YouTube overlay created:', {
+      itemId,
+      elementTagName: element.tagName,
+      elementClassName: element.className?.substring(0, 50),
+      overlayCreated: !!overlay,
+      processedItemsCount: processedItems.size
+    });
+  }
   
   // #region agent log
   const logData4 = {location:'content-main.ts:411',message:'Overlay created and stored',data:{itemId:itemId,elementTagName:element.tagName,processedItemsCount:processedItems.size,forceOverlay:forceOverlay,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'}};
@@ -500,6 +572,34 @@ const addTrashIconToItem = (element: HTMLElement, adapter: PlatformAdapter): voi
     </svg>
   `;
 
+  // Base styles for the trash icon button
+  trashIcon.style.position = 'absolute';
+  trashIcon.style.padding = '0.5rem';
+  trashIcon.style.background = 'rgba(0, 0, 0, 0.6)';
+  trashIcon.style.color = '#ffffff';
+  trashIcon.style.border = 'none';
+  trashIcon.style.borderRadius = '50%';
+  trashIcon.style.cursor = 'pointer';
+  trashIcon.style.display = 'flex';
+  trashIcon.style.alignItems = 'center';
+  trashIcon.style.justifyContent = 'center';
+  trashIcon.style.zIndex = '999999';
+  trashIcon.style.opacity = '0';
+  trashIcon.style.transition = 'opacity 0.2s, background-color 0.2s';
+  trashIcon.style.pointerEvents = 'auto';
+  trashIcon.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.3)';
+
+  // Positioning: for LinkedIn use the top-right corner to match card UIs.
+  if (adapter.getPlatformName() === 'linkedin') {
+    trashIcon.style.top = '0.5rem';
+    trashIcon.style.right = '0.5rem';
+    // En LinkedIn mostramos el icono inmediatamente para visibilidad rápida.
+    trashIcon.style.opacity = '1';
+  } else {
+    trashIcon.style.bottom = '0.5rem';
+    trashIcon.style.right = '0.5rem';
+  }
+
   const handleTrashClick = async (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -523,7 +623,30 @@ const addTrashIconToItem = (element: HTMLElement, adapter: PlatformAdapter): voi
       fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData6)}).catch(()=>{});
       // #endregion
       
-      if (itemId && isExtensionContextValid) {
+      // Validate itemId: must exist and not be empty
+      if (!itemId || itemId.trim().length === 0) {
+        console.warn('[Slop-Stop] Invalid itemId when reporting slop (empty or null):', { 
+          itemId, 
+          platform: adapter.getPlatformName(), 
+          elementTagName: element.tagName,
+          elementClassName: element.className?.substring(0, 50)
+        });
+        return;
+      }
+      
+      // For YouTube, validate that itemId is at least 11 characters (YouTube video IDs are 11 chars)
+      if (adapter.getPlatformName() === 'youtube' && itemId.length < 11) {
+        console.warn('[Slop-Stop] Invalid YouTube video ID when reporting slop (too short):', { 
+          itemId, 
+          length: itemId.length,
+          platform: adapter.getPlatformName(), 
+          elementTagName: element.tagName,
+          elementClassName: element.className?.substring(0, 50)
+        });
+        return;
+      }
+      
+      if (isExtensionContextValid) {
         try {
           // Step 1: Report to backend
           await reportSlop(itemId, adapter.getPlatformName());
@@ -679,21 +802,50 @@ const initializeContentScript = (): void => {
       // Get itemId first to validate the item
       const itemId = adapter.getItemId(item);
       
+      // Debug logging for YouTube to track itemId extraction
+      if (adapter.getPlatformName() === 'youtube') {
+        console.log('[Slop-Stop] YouTube item processing:', {
+          itemIndex: i,
+          itemId: itemId,
+          itemIdLength: itemId?.length,
+          tagName: item.tagName,
+          className: item.className?.substring(0, 50),
+          elementId: item.id?.substring(0, 30)
+        });
+      }
+      
       // #region agent log
-      const logData8 = {location:'content-main.ts:582',message:'Processing item',data:{itemIndex:i,itemId:itemId,itemTagName:item.tagName,itemClassName:item.className?.substring(0,50),itemIdAttr:item.id?.substring(0,30),timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'}};
+      const logData8 = {location:'content-main.ts:582',message:'Processing item',data:{itemIndex:i,itemId:itemId,itemTagName:item.tagName,itemClassName:item.className?.substring(0,50),itemIdAttr:item.id?.substring(0,30),platform:adapter.getPlatformName(),timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'}};
       fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logData8)}).catch(()=>{});
       // #endregion
       
       // Skip items without valid IDs (they can't be tracked properly)
-      if (!itemId) {
+      if (!itemId || itemId.trim().length === 0) {
         console.log('[Slop-Stop] Skipping item without ID:', {
           tagName: item.tagName,
           className: item.className?.substring(0, 50),
-          textLength: item.textContent?.length
+          textLength: item.textContent?.length,
+          platform: adapter.getPlatformName()
         });
         // #region agent log
-        const logDataSkipNoId = {location:'content-main.ts:686',message:'Skipping item - no ID',data:{itemIndex:i,itemTagName:item.tagName,itemClassName:item.className?.substring(0,50),itemIdAttr:item.id?.substring(0,30),itemTextLength:item.textContent?.length,itemChildrenCount:item.children.length,timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'B'}};
+        const logDataSkipNoId = {location:'content-main.ts:686',message:'Skipping item - no ID',data:{itemIndex:i,itemTagName:item.tagName,itemClassName:item.className?.substring(0,50),itemIdAttr:item.id?.substring(0,30),itemTextLength:item.textContent?.length,itemChildrenCount:item.children.length,platform:adapter.getPlatformName(),timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'B'}};
         fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logDataSkipNoId)}).catch(()=>{});
+        // #endregion
+        continue;
+      }
+      
+      // For YouTube, validate that itemId is at least 11 characters (YouTube video IDs are 11 chars)
+      if (adapter.getPlatformName() === 'youtube' && itemId.length < 11) {
+        console.warn('[Slop-Stop] Invalid YouTube video ID (too short):', {
+          itemId,
+          length: itemId.length,
+          tagName: item.tagName,
+          className: item.className?.substring(0, 50),
+          itemIndex: i
+        });
+        // #region agent log
+        const logDataInvalidId = {location:'content-main.ts:700',message:'Skipping item - invalid YouTube ID',data:{itemId:itemId,itemIdLength:itemId.length,itemIndex:i,itemTagName:item.tagName,itemClassName:item.className?.substring(0,50),timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'B'}};
+        fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logDataInvalidId)}).catch(()=>{});
         // #endregion
         continue;
       }
@@ -884,8 +1036,8 @@ const initializeContentScript = (): void => {
     reportWebsite
   );
 
-  // Context menu handler for right-click "Report Slop"
-  const handleContextMenu = async (e: MouseEvent) => {
+  // Context menu handler - store the clicked element but don't prevent default behavior
+  const handleContextMenu = (e: MouseEvent) => {
     if (!isExtensionContextValid) return;
     
     const target = e.target as HTMLElement;
@@ -894,88 +1046,19 @@ const initializeContentScript = (): void => {
     let postElement: HTMLElement | null = null;
     
     if (adapter.getPlatformName() === 'linkedin') {
-      // Use getCurrentItems to find the complete post container
-      const allItems = adapter.getCurrentItems();
-      for (const potentialItem of allItems) {
-        if (potentialItem.tagName === 'MAIN' || potentialItem.id === 'workspace') {
-          continue;
-        }
-        if (potentialItem.contains(target)) {
-          postElement = potentialItem;
-          break;
-        }
-      }
-      
-      // Fallback: walk up DOM tree
-      if (!postElement) {
-        let current: HTMLElement | null = target;
-        let depth = 0;
-        while (current && depth < 20) {
-          if (current.tagName === 'MAIN' || current.id === 'workspace') {
-            current = current.parentElement;
-            depth++;
-            continue;
-          }
-          
-          const textLength = current.textContent?.length || 0;
-          const buttons = current.querySelectorAll('button, [role="button"]');
-          const buttonsCount = buttons.length;
-          const images = current.querySelectorAll('img');
-          const imagesCount = images.length;
-          const childrenCount = current.children.length;
-          
-          const hasEngagementButtons = Array.from(buttons).some(btn => {
-            const btnText = (btn.textContent || '').toLowerCase();
-            return btnText.includes('like') || btnText.includes('comentar') || 
-                   btnText.includes('comment') || btnText.includes('share') ||
-                   btnText.includes('compartir') || btnText.includes('recomendar');
-          });
-          
-          const hasProfileImage = Array.from(images).some(img => {
-            const alt = (img.getAttribute('alt') || '').toLowerCase();
-            return alt.includes('profile') || alt.includes('avatar') || alt.includes('member');
-          });
-          
-          const rect = current.getBoundingClientRect();
-          const hasMinimumHeight = rect.height >= 150;
-          
-          const isPost = 
-            textLength >= 50 && textLength <= 5000 &&
-            (hasEngagementButtons || hasProfileImage) &&
-            (childrenCount >= 2 || imagesCount > 0) &&
-            (hasMinimumHeight || depth <= 2) &&
-            (current.tagName === 'DIV' || current.tagName === 'SECTION' || current.tagName === 'ARTICLE');
-          
-          if (isPost) {
-            postElement = current;
-            break;
-          }
-          
-          current = current.parentElement;
-          depth++;
-        }
-      }
+      postElement = findLinkedInPostContainer(target, adapter);
     } else {
       // For other platforms, use the selector
       const selector = adapter.getItemSelector();
       postElement = target.closest(selector) as HTMLElement;
     }
     
+    // Store the element for later use when "Report Slop" is clicked from context menu
+    // Don't prevent default - let the native context menu appear
     if (postElement) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const itemId = adapter.getItemId(postElement);
-      if (itemId && isExtensionContextValid) {
-        try {
-          await reportSlop(itemId, adapter.getPlatformName());
-          if (isExtensionContextValid && postElement && postElement.isConnected) {
-            await processItem(postElement, adapter, true).catch(() => {});
-          }
-        } catch (error) {
-          // Silently handle errors
-        }
-      }
+      lastRightClickedElement = postElement;
+    } else {
+      lastRightClickedElement = null;
     }
   };
   
@@ -988,7 +1071,7 @@ const initializeContentScript = (): void => {
     document.removeEventListener('contextmenu', handleContextMenu, true);
   });
 
-  // Listen for keyboard commands from service worker
+  // Listen for keyboard commands and context menu commands from service worker
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'KEYBOARD_COMMAND') {
       const command = (message as { command: string }).command;
@@ -1015,6 +1098,29 @@ const initializeContentScript = (): void => {
           cancelable: true,
         });
         document.dispatchEvent(fakeEvent);
+      }
+      sendResponse({ success: true });
+      return true;
+    } else if (message.type === MessageType.CONTEXT_MENU_REPORT_SLOP) {
+      // Handle context menu "Report Slop" click
+      if (lastRightClickedElement && isExtensionContextValid) {
+        const handleContextMenuReport = async () => {
+          try {
+            const itemId = adapter.getItemId(lastRightClickedElement!);
+            if (itemId && isExtensionContextValid) {
+              await reportSlop(itemId, adapter.getPlatformName());
+              if (isExtensionContextValid && lastRightClickedElement && lastRightClickedElement.isConnected) {
+                await processItem(lastRightClickedElement, adapter, true).catch(() => {});
+              }
+            }
+          } catch (error) {
+            // Silently handle errors
+          } finally {
+            // Clear the stored element after use
+            lastRightClickedElement = null;
+          }
+        };
+        handleContextMenuReport();
       }
       sendResponse({ success: true });
       return true;

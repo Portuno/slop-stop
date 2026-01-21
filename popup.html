@@ -6,18 +6,54 @@
   <title>Stop-Slop Settings</title>
   <style>
     body {
-      width: 400px;
+      width: 420px;
       padding: 1.5rem;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       margin: 0;
+      background: #f7f9fc;
     }
     h1 {
       font-size: 1.5rem;
-      margin: 0 0 1.5rem 0;
+      margin: 0 0 1rem 0;
       font-weight: 700;
     }
+    h2 {
+      font-size: 1.1rem;
+      margin: 0 0 0.5rem 0;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    p {
+      margin: 0 0 0.75rem 0;
+      color: #334155;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: #e0f2fe;
+      color: #075985;
+      padding: 0.4rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+    .tag span {
+      font-size: 0.95rem;
+    }
     .form-group {
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
     }
     label {
       display: block;
@@ -32,6 +68,22 @@
       border-radius: 0.25rem;
       font-size: 0.875rem;
       box-sizing: border-box;
+    }
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      padding: 0.6rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 0.5rem;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+      resize: vertical;
+      background: #f8fafc;
+    }
+    textarea:focus {
+      outline: 2px solid #1d9bf0;
+      outline-offset: 2px;
+      background: #ffffff;
     }
     input:focus {
       outline: 2px solid #1d9bf0;
@@ -48,6 +100,7 @@
       font-weight: 700;
       cursor: pointer;
       transition: background-color 0.2s;
+      box-shadow: 0 6px 12px rgba(29, 155, 240, 0.2);
     }
     button:hover {
       background: #1a8cd8;
@@ -73,22 +126,86 @@
       color: #721c24;
       border: 1px solid #f5c6cb;
     }
+    .hotkey-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.5rem;
+      margin: 0.5rem 0 0;
+    }
+    .hotkey {
+      background: #0ea5e9;
+      color: #ffffff;
+      padding: 0.65rem;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      box-shadow: 0 4px 8px rgba(14, 165, 233, 0.25);
+    }
+    .hotkey small {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 500;
+      opacity: 0.9;
+    }
+    .muted {
+      color: #64748b;
+      font-size: 0.85rem;
+    }
+    .cta {
+      border-left: 4px solid #1d9bf0;
+      padding-left: 0.75rem;
+      margin-bottom: 0.75rem;
+      color: #0f172a;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
-  <h1>Stop-Slop Settings</h1>
-  
-  <form id="settingsForm">
-    <div class="form-group">
-      <label for="reportLimit">Report Limit Threshold</label>
-      <input type="number" id="reportLimit" name="reportLimit" min="1" value="5" required>
-      <small style="color: #666; font-size: 0.75rem;">Number of reports needed to block a website</small>
+  <h1>Stop-Slop HQ</h1>
+
+  <div class="card" aria-label="Sobre Stop-Slop">
+    <div class="tag"><span>🛡️</span> Unidos contra el slop</div>
+    <p class="cta">Únete a la resistencia: bloqueamos basura AI antes de que llegue a la gente.</p>
+    <p>Reporta con dos atajos y comparte feedback para mejorar cómo defendemos la red.</p>
+    <div class="hotkey-list" aria-label="Atajos de teclado">
+      <div class="hotkey" aria-label="Alt + S para marcar slop">
+        Alt + S <small>Marca piezas individuales</small>
+      </div>
+      <div class="hotkey" aria-label="Alt + U para bloquear sitio">
+        Alt + U <small>Reporta todo el sitio</small>
+      </div>
     </div>
-    
-    <button type="submit" id="saveButton">Save Settings</button>
-  </form>
-  
-  <div id="status" class="status"></div>
+  </div>
+
+  <div class="card" aria-label="Configuración de reportes">
+    <h2>Umbral de reportes</h2>
+    <p class="muted">Número de reportes necesarios para bloquear un sitio.</p>
+    <form id="settingsForm">
+      <div class="form-group">
+        <label for="reportLimit">Report Limit Threshold</label>
+        <input type="number" id="reportLimit" name="reportLimit" min="1" value="5" required aria-label="Número mínimo de reportes para bloquear">
+      </div>
+      <button type="submit" id="saveButton" aria-label="Guardar configuración">Save Settings</button>
+    </form>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="card" aria-label="Enviar feedback">
+    <h2>Feedback directo</h2>
+    <p class="muted">Cuéntanos qué mejorar o qué te encanta. Lo vemos al instante.</p>
+    <form id="feedbackForm">
+      <div class="form-group">
+        <label for="feedbackText">Tu mensaje</label>
+        <textarea id="feedbackText" name="feedbackText" placeholder="Comparte ideas, bugs o mejoras" aria-label="Caja de texto para enviar feedback" required></textarea>
+      </div>
+      <button type="submit" id="feedbackButton" aria-label="Enviar feedback">Enviar feedback</button>
+    </form>
+    <div id="feedbackStatus" class="status" aria-live="polite"></div>
+  </div>
   
   <script src="popup.js"></script>
 </body>

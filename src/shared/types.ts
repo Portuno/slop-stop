@@ -25,6 +25,8 @@ export enum MessageType {
   GET_SLOP_STATUS = 'GET_SLOP_STATUS',
   GET_SETTINGS = 'GET_SETTINGS',
   SET_SETTINGS = 'SET_SETTINGS',
+  CONTEXT_MENU_REPORT_SLOP = 'CONTEXT_MENU_REPORT_SLOP',
+  SUBMIT_FEEDBACK = 'SUBMIT_FEEDBACK',
 }
 
 export interface ReportSlopPayload {
@@ -34,6 +36,10 @@ export interface ReportSlopPayload {
 
 export interface ReportWebsitePayload {
   url: string;
+}
+
+export interface SubmitFeedbackPayload {
+  feedback: string;
 }
 
 export interface GetSlopStatusPayload {

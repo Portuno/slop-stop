@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Stop-Slop",
+  "name": "slop-stop",
   "version": "1.0.0",
   "description": "Community-driven curation layer that identifies and hides 'Slop' content on Twitter, YouTube, LinkedIn, and the internet",
   "background": {
@@ -11,7 +11,8 @@
     "storage",
     "tabs",
     "scripting",
-    "activeTab"
+    "activeTab",
+    "contextMenus"
   ],
   "host_permissions": [
     "*://twitter.com/*",

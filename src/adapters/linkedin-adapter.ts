@@ -515,17 +515,48 @@ export class LinkedInAdapter extends BaseAdapter {
   }
 
   getItemId(element: HTMLElement): string | null {
-    // Try data-id first (LinkedIn uses this)
+    // Strategy 1: Try to find the unique post link/URL (like Twitter does)
+    // LinkedIn posts have links like: https://www.linkedin.com/feed/update/urn:li:activity:XXXXXXX
+    // or links with activity IDs in query params or path
+    const postLinks = element.querySelectorAll<HTMLAnchorElement>('a[href*="/feed/update"], a[href*="activity"], a[href*="/posts/"]');
+    for (const link of Array.from(postLinks)) {
+      const href = link.href;
+      // Try to extract activity ID from URL
+      // Pattern 1: /feed/update/urn:li:activity:XXXXXXX
+      let match = href.match(/\/feed\/update\/urn:li:activity:(\d+)/);
+      if (match) {
+        // #region agent log
+        const logDataLink = {location:'linkedin-adapter.ts:517',message:'Found post ID from link URL',data:{activityId:match[1],href:href.substring(0,100),method:'feed/update/urn',timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'E'}};
+        fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logDataLink)}).catch(()=>{});
+        // #endregion
+        return match[1];
+      }
+      // Pattern 2: /posts/XXXXXXX or activity=XXXXXXX in query params
+      match = href.match(/\/posts\/([^/?]+)/) || href.match(/[?&]activity=([^&]+)/) || href.match(/activity[=:](\d+)/);
+      if (match) {
+        // #region agent log
+        const logDataLink2 = {location:'linkedin-adapter.ts:525',message:'Found post ID from link URL (pattern 2)',data:{activityId:match[1],href:href.substring(0,100),method:'posts/activity',timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'E'}};
+        fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logDataLink2)}).catch(()=>{});
+        // #endregion
+        return match[1];
+      }
+    }
+    
+    // Strategy 2: Try data-id first (LinkedIn uses this)
     let id = element.getAttribute('data-id');
     if (id?.startsWith('urn:li:activity:')) {
       const match = id.match(/urn:li:activity:(\d+)/);
       if (match) {
+        // #region agent log
+        const logDataAttr = {location:'linkedin-adapter.ts:533',message:'Found post ID from data-id attribute',data:{activityId:match[1],method:'data-id',timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'E'}};
+        fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logDataAttr)}).catch(()=>{});
+        // #endregion
         return match[1];
       }
       return id;
     }
     
-    // Try data-urn
+    // Strategy 3: Try data-urn
     let urn = element.getAttribute('data-urn');
     
     // If not on the element itself, search in parent elements (up to 10 levels deep)
@@ -533,6 +564,20 @@ export class LinkedInAdapter extends BaseAdapter {
       let parent = element.parentElement;
       let depth = 0;
       while (parent && depth < 10) {
+        // Also search for links in parent
+        const parentLinks = parent.querySelectorAll<HTMLAnchorElement>('a[href*="/feed/update"], a[href*="activity"], a[href*="/posts/"]');
+        for (const link of Array.from(parentLinks)) {
+          const href = link.href;
+          let match = href.match(/\/feed\/update\/urn:li:activity:(\d+)/) || href.match(/\/posts\/([^/?]+)/) || href.match(/[?&]activity=([^&]+)/) || href.match(/activity[=:](\d+)/);
+          if (match) {
+            // #region agent log
+            const logDataParentLink = {location:'linkedin-adapter.ts:548',message:'Found post ID from parent link',data:{activityId:match[1],depth:depth,href:href.substring(0,100),timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'E'}};
+            fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logDataParentLink)}).catch(()=>{});
+            // #endregion
+            return match[1];
+          }
+        }
+        
         id = parent.getAttribute('data-id');
         if (id?.startsWith('urn:li:activity:')) {
           const match = id.match(/urn:li:activity:(\d+)/);
@@ -550,12 +595,16 @@ export class LinkedInAdapter extends BaseAdapter {
     if (urn?.startsWith('urn:li:activity:')) {
       const match = urn.match(/urn:li:activity:(\d+)/);
       if (match) {
+        // #region agent log
+        const logDataUrn = {location:'linkedin-adapter.ts:567',message:'Found post ID from data-urn attribute',data:{activityId:match[1],method:'data-urn',timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'E'}};
+        fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logDataUrn)}).catch(()=>{});
+        // #endregion
         return match[1];
       }
       return urn;
     }
 
-    // Try data-activity-id
+    // Strategy 4: Try data-activity-id
     let activityId = element.getAttribute('data-activity-id');
     if (!activityId) {
       // Search in parent elements
@@ -570,6 +619,10 @@ export class LinkedInAdapter extends BaseAdapter {
     }
     
     if (activityId) {
+      // #region agent log
+      const logDataActivityId = {location:'linkedin-adapter.ts:586',message:'Found post ID from data-activity-id attribute',data:{activityId:activityId,method:'data-activity-id',timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'E'}};
+      fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logDataActivityId)}).catch(()=>{});
+      // #endregion
       return activityId;
     }
 
@@ -577,6 +630,11 @@ export class LinkedInAdapter extends BaseAdapter {
     // This allows us to work even if LinkedIn doesn't expose URNs
     // IMPORTANT: Don't use timestamp/random here - we need stable IDs for the same element
     // Use a stable hash based on content and position
+    // #region agent log
+    const logDataFallback = {location:'linkedin-adapter.ts:595',message:'Using fallback hash-based ID (no unique link found)',data:{elementTagName:element.tagName,hasLinks:postLinks.length>0,timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'E'}};
+    fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logDataFallback)}).catch(()=>{});
+    // #endregion
+    
     const textContent = element.textContent?.substring(0, 300) || '';
     const position = Array.from(element.parentElement?.children || []).indexOf(element);
     
@@ -618,12 +676,32 @@ export class LinkedInAdapter extends BaseAdapter {
     originalElement.style.visibility = 'visible';
     originalElement.style.opacity = '1';
     
+    // IMPORTANT: Ensure overlay stays within post container bounds
+    // Set overflow: hidden on the container to prevent overlay from spilling out
+    // Store original overflow value to potentially restore later
+    const originalOverflow = computedStyle.overflow;
+    if (originalOverflow !== 'hidden') {
+      originalElement.style.overflow = 'hidden';
+      // Store original overflow value as data attribute for potential restoration
+      if (!originalElement.hasAttribute('data-slop-original-overflow')) {
+        originalElement.setAttribute('data-slop-original-overflow', originalOverflow);
+      }
+    }
+    
     // Store original height to ensure overlay covers it completely
     const originalHeight = originalElement.offsetHeight || originalElement.getBoundingClientRect().height;
-    if (originalHeight > 0) {
-      // Ensure container maintains minimum height
+
+    // Para LinkedIn no queremos mantener la altura original: debe colapsar.
+    // Para otras plataformas mantenemos el comportamiento previo (min-height).
+    if (this.getPlatformName() !== 'linkedin' && originalHeight > 0) {
       originalElement.style.minHeight = `${originalHeight}px`;
+    } else {
+      // En LinkedIn reducimos altura y eliminamos mínimos previos.
+      originalElement.style.minHeight = '0px';
     }
+
+    // LinkedIn-specific: al censurar, limitar altura máxima para ahorrar espacio.
+    originalElement.style.maxHeight = '250px';
     
     // The Ghosting: Hide ONLY the children inside the container, not the container itself
     const children = Array.from(originalElement.children) as HTMLElement[];
@@ -647,6 +725,7 @@ export class LinkedInAdapter extends BaseAdapter {
     originalElement.style.pointerEvents = 'none';
     
     // The Replacement: Create overlay as absolute child covering 100% of container
+    // IMPORTANT: Use position: absolute (not fixed) so it stays within the post container
     const overlay = document.createElement('div');
     overlay.style.position = 'absolute';
     overlay.style.top = '0';
@@ -656,15 +735,26 @@ export class LinkedInAdapter extends BaseAdapter {
     overlay.style.width = '100%';
     overlay.style.height = '100%';
     if (originalHeight > 0) {
-      overlay.style.minHeight = `${originalHeight}px`; // Ensure minimum height matches original
+      // Mantener suficiente altura para que el overlay cubra el post,
+      // pero respetando el límite de 250px del contenedor.
+      const clampedHeight = Math.min(originalHeight, 250);
+      overlay.style.minHeight = `${clampedHeight}px`;
+      overlay.style.maxHeight = '250px';
+    } else {
+      overlay.style.maxHeight = '250px';
     }
-    overlay.style.zIndex = '99999'; // Very high z-index to ensure it's above LinkedIn elements
+    overlay.style.zIndex = '9999'; // High z-index but not too high to avoid overlapping navigation
     overlay.style.opacity = '1';
     overlay.style.visibility = 'visible';
     overlay.style.display = 'flex';
     overlay.style.pointerEvents = 'auto';
     overlay.style.overflow = 'hidden'; // Prevent content from spilling out
     overlay.setAttribute('data-slop-overlay', 'true');
+    
+    // #region agent log
+    const logDataOverlay = {location:'linkedin-adapter.ts:650',message:'Creating overlay',data:{originalElementTag:originalElement.tagName,originalHeight:originalHeight,overlayPosition:'absolute',overlayZIndex:'9999',hasOverflowHidden:computedStyle.overflow==='hidden',timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'A'}};
+    fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logDataOverlay)}).catch(()=>{});
+    // #endregion
     
     // Insert overlay as a child of the original element
     originalElement.appendChild(overlay);
