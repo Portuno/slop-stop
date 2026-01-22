@@ -4,7 +4,7 @@ import { DEFAULT_REPORT_LIMIT_THRESHOLD, STORAGE_KEYS } from '../shared/constant
 
 chrome.runtime.onInstalled.addListener(async () => {
   try {
-    console.log('[Slop-Stop] Extension installed');
+    // logger.log('[Slop-Stop] Extension installed');
     
     const settings = await chrome.storage.sync.get(STORAGE_KEYS.SETTINGS);
     if (!settings[STORAGE_KEYS.SETTINGS]) {

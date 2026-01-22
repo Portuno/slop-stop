@@ -44,7 +44,7 @@ export const getSupabaseClient = async (): Promise<SupabaseClient> => {
     // Supabase not configured - this is OK, the extension will work in offline mode
     // Create a dummy client that will fail gracefully
     const errorMsg = 'Supabase configuration not found or invalid. Extension will work in offline mode.';
-    console.warn('[Slop-Stop]', errorMsg);
+    // logger.warn('[Slop-Stop]', errorMsg);
     // Return a client that will fail gracefully on requests
     supabaseClient = createClient('https://placeholder.supabase.co', 'placeholder-key', {
       auth: {
@@ -78,7 +78,7 @@ export const getSupabaseClient = async (): Promise<SupabaseClient> => {
     return supabaseClient;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[Slop-Stop] Error creating Supabase client:', errorMessage);
+    // logger.error('[Slop-Stop] Error creating Supabase client:', errorMessage);
     throw error;
   }
 };

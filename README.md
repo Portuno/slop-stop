@@ -4,7 +4,7 @@ A community-driven curation layer that identifies and hides "Slop" content on Tw
 
 ## Features
 
-- **Community-Driven Reporting**: Users can report low-quality, AI-generated filler content
+- **Community-Driven Reporting**: Users can report low-quality filler content
 - **Platform Support**: Works on Twitter/X, YouTube, LinkedIn, and any website
 - **Native UI**: Slop content is hidden with a native-looking overlay similar to Twitter's sensitive content warnings
 - **Hotkey Support**:
@@ -75,100 +75,100 @@ npm run build
    - Click the extension icon
    - Set your report limit threshold (default: 5)
 
-## Desplegar/Actualizar la Extensión (Limpiar Caché)
+## Deploy/Update Extension (Clear Cache)
 
-Cuando actualices la extensión o encuentres problemas con cambios que no se reflejan, sigue estos pasos para limpiar completamente la caché:
+When you update the extension or encounter issues with changes that don't reflect, follow these steps to completely clear the cache:
 
-### Método 1: Recarga con Limpieza Completa (Recomendado)
+### Method 1: Reload with Complete Cleanup (Recommended)
 
-1. **Abre la página de extensiones:**
-   - Navega a `chrome://extensions/` (o `edge://extensions/` en Edge)
-   - Asegúrate de que "Modo de desarrollador" esté activado
+1. **Open the extensions page:**
+   - Navigate to `chrome://extensions/` (or `edge://extensions/` in Edge)
+   - Make sure "Developer mode" is enabled
 
-2. **Elimina la extensión antigua:**
-   - Busca "Stop-Slop" en la lista de extensiones
-   - Haz clic en el botón "Eliminar" (🗑️)
-   - Confirma la eliminación
+2. **Remove the old extension:**
+   - Find "Stop-Slop" in the extensions list
+   - Click the "Remove" button (🗑️)
+   - Confirm the removal
 
-3. **Limpia la caché del navegador (opcional pero recomendado):**
-   - Presiona `Ctrl + Shift + Delete` (o `Cmd + Shift + Delete` en Mac)
-   - Selecciona "Caché de imágenes y archivos"
-   - Elige "Última hora" o "Todo el tiempo"
-   - Haz clic en "Borrar datos"
+3. **Clear browser cache (optional but recommended):**
+   - Press `Ctrl + Shift + Delete` (or `Cmd + Shift + Delete` on Mac)
+   - Select "Cached images and files"
+   - Choose "Last hour" or "All time"
+   - Click "Clear data"
 
-4. **Reconstruye la extensión:**
+4. **Rebuild the extension:**
    ```bash
    npm run build
    ```
 
-5. **Recarga la extensión:**
-   - En `chrome://extensions/`, haz clic en "Cargar extensión sin empaquetar"
-   - Selecciona la carpeta `dist/`
+5. **Reload the extension:**
+   - In `chrome://extensions/`, click "Load unpacked"
+   - Select the `dist/` folder
 
-### Método 2: Recarga Rápida (Para desarrollo)
+### Method 2: Quick Reload (For development)
 
-Si solo hiciste cambios menores y quieres recargar rápidamente:
+If you only made minor changes and want to reload quickly:
 
-1. **Reconstruye la extensión:**
+1. **Rebuild the extension:**
    ```bash
    npm run build
    ```
 
-2. **Recarga la extensión:**
-   - Ve a `chrome://extensions/`
-   - Encuentra "Stop-Slop"
-   - Haz clic en el ícono de recarga (🔄) junto a la extensión
+2. **Reload the extension:**
+   - Go to `chrome://extensions/`
+   - Find "Stop-Slop"
+   - Click the reload icon (🔄) next to the extension
 
-3. **Recarga las pestañas activas:**
-   - Si tienes pestañas abiertas de Twitter/X, YouTube, LinkedIn, etc.
-   - Recárgalas manualmente (`F5` o `Ctrl + R`) para que los cambios surtan efecto
+3. **Reload active tabs:**
+   - If you have tabs open for Twitter/X, YouTube, LinkedIn, etc.
+   - Reload them manually (`F5` or `Ctrl + R`) for changes to take effect
 
-### Método 3: Limpieza Profunda (Si persisten problemas)
+### Method 3: Deep Cleanup (If problems persist)
 
-Si después de los métodos anteriores aún hay problemas:
+If after the previous methods you still have problems:
 
-1. **Elimina la extensión** (paso 2 del Método 1)
+1. **Remove the extension** (step 2 of Method 1)
 
-2. **Limpia el almacenamiento de la extensión:**
-   - Abre las herramientas de desarrollador (`F12`)
-   - Ve a la pestaña "Application" (o "Aplicación")
-   - En el panel izquierdo, expande "Storage" → "Local Storage"
-   - Busca y elimina cualquier entrada relacionada con `chrome-extension://[ID-de-tu-extensión]`
-   - Haz lo mismo para "Session Storage"
+2. **Clear extension storage:**
+   - Open developer tools (`F12`)
+   - Go to the "Application" tab
+   - In the left panel, expand "Storage" → "Local Storage"
+   - Find and delete any entries related to `chrome-extension://[your-extension-id]`
+   - Do the same for "Session Storage"
 
-3. **Limpia chrome.storage (si es necesario):**
-   - Abre la consola de la extensión (en `chrome://extensions/`, haz clic en "service worker" o "inspeccionar vistas: service worker")
-   - Ejecuta en la consola:
+3. **Clear chrome.storage (if necessary):**
+   - Open the extension console (in `chrome://extensions/`, click "service worker" or "inspect views: service worker")
+   - Run in the console:
      ```javascript
      chrome.storage.sync.clear();
      chrome.storage.local.clear();
      ```
 
-4. **Reconstruye y recarga** (pasos 4-5 del Método 1)
+4. **Rebuild and reload** (steps 4-5 of Method 1)
 
-### Verificar que los cambios se aplicaron
+### Verify that changes were applied
 
-Después de recargar:
+After reloading:
 
-1. **Verifica la versión:**
-   - En `chrome://extensions/`, verifica que la extensión muestra la versión correcta
-   - Revisa la fecha de "Última actualización"
+1. **Check the version:**
+   - In `chrome://extensions/`, verify that the extension shows the correct version
+   - Check the "Last updated" date
 
-2. **Prueba en una pestaña nueva:**
-   - Abre una nueva pestaña con Twitter/X, YouTube o LinkedIn
-   - Verifica que los cambios funcionan correctamente
+2. **Test in a new tab:**
+   - Open a new tab with Twitter/X, YouTube or LinkedIn
+   - Verify that changes work correctly
 
-3. **Revisa la consola:**
-   - Abre las herramientas de desarrollador (`F12`)
-   - Ve a la pestaña "Console"
-   - Busca mensajes de `[Slop-Stop]` para verificar que la extensión se cargó correctamente
+3. **Check the console:**
+   - Open developer tools (`F12`)
+   - Go to the "Console" tab
+   - Look for `[Slop-Stop]` messages to verify the extension loaded correctly
 
-### Notas Importantes
+### Important Notes
 
-- **Siempre reconstruye** (`npm run build`) antes de recargar la extensión
-- Los cambios en el `manifest.json` requieren eliminar y recargar completamente la extensión
-- Los cambios en content scripts pueden requerir recargar las pestañas donde se ejecutan
-- Los cambios en el service worker requieren recargar la extensión completamente
+- **Always rebuild** (`npm run build`) before reloading the extension
+- Changes to `manifest.json` require removing and completely reloading the extension
+- Changes to content scripts may require reloading the tabs where they run
+- Changes to the service worker require completely reloading the extension
 
 ## Development
 

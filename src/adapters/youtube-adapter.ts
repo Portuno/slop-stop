@@ -173,6 +173,58 @@ export class YouTubeAdapter extends BaseAdapter {
     return null;
   }
 
+  getUserIdentifier(element: HTMLElement): string | null {
+    // Strategy 1: Look for channel links with @username format (preferred)
+    // YouTube uses /@username for modern channel URLs
+    const channelLinks = element.querySelectorAll<HTMLAnchorElement>('a[href*="/@"]');
+    for (const link of Array.from(channelLinks)) {
+      const href = link.href;
+      const match = href.match(/youtube\.com\/@([^\/\?]+)/);
+      if (match && match[1]) {
+        return `@${match[1]}`;
+      }
+    }
+
+    // Strategy 2: Look for /channel/CHANNEL_ID or /c/username or /user/USERNAME
+    const allChannelLinks = element.querySelectorAll<HTMLAnchorElement>('a[href*="/channel/"], a[href*="/c/"], a[href*="/user/"]');
+    for (const link of Array.from(allChannelLinks)) {
+      const href = link.href;
+      
+      // Try /c/username first (custom channel URL)
+      let match = href.match(/youtube\.com\/c\/([^\/\?]+)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+      
+      // Try /user/USERNAME
+      match = href.match(/youtube\.com\/user\/([^\/\?]+)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+      
+      // Try /channel/CHANNEL_ID (use as fallback, but prefer username)
+      match = href.match(/youtube\.com\/channel\/([^\/\?]+)/);
+      if (match && match[1]) {
+        // Channel IDs are long strings, but we'll use them if no username found
+        return match[1];
+      }
+    }
+
+    // Strategy 3: Look for channel name in ytd-channel-name element
+    const channelNameElement = element.querySelector('ytd-channel-name a, #channel-name a');
+    if (channelNameElement) {
+      const href = (channelNameElement as HTMLAnchorElement).href;
+      if (href) {
+        const match = href.match(/youtube\.com\/@([^\/\?]+)/);
+        if (match && match[1]) {
+          return `@${match[1]}`;
+        }
+      }
+    }
+
+    return null;
+  }
+
   createGhostContainer(originalElement: HTMLElement): HTMLElement {
     // The Anchor: Set the main post container to position: relative
     // IMPORTANT: Keep the container visible and positioned correctly

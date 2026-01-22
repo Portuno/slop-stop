@@ -32,6 +32,7 @@ export enum MessageType {
 export interface ReportSlopPayload {
   itemId: string;
   platform: Platform;
+  userIdentifier?: string;
 }
 
 export interface ReportWebsitePayload {
@@ -52,8 +53,24 @@ export interface SlopStatusResponse {
   reportCount: number;
 }
 
+export interface UserSlopCount {
+  userIdentifier: string;
+  platform: Platform;
+  slopCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+export interface WebsiteSlopCount {
+  domain: string;
+  slopCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
 export interface PlatformAdapter {
   getItemId(element: HTMLElement): string | null;
+  getUserIdentifier(element: HTMLElement): string | null;
   getItemSelector(): string;
   observeItems(callback: (items: HTMLElement[]) => void): () => void;
   createGhostContainer(originalElement: HTMLElement): HTMLElement;

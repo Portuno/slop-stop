@@ -12,6 +12,7 @@ import {
   SubmitFeedbackPayload,
 } from '../shared/types.js';
 import { DEFAULT_REPORT_LIMIT_THRESHOLD, STORAGE_KEYS } from '../shared/constants.js';
+import { logger } from '../shared/logger.js';
 
 export const handleMessage = async (
   message: Message,
@@ -28,7 +29,7 @@ export const handleMessage = async (
           let supabase;
           try {
             supabase = await getSupabaseClient();
-            console.log('[Slop-Stop] REPORT_SLOP: got supabase client');
+            logger.log('[Slop-Stop] REPORT_SLOP: got supabase client');
           } catch (error) {
             // Supabase not configured - return success but with 0 report count
             console.warn('[Slop-Stop] REPORT_SLOP: Supabase not configured', error);
@@ -36,13 +37,14 @@ export const handleMessage = async (
             return true;
           }
 
-          console.log('[Slop-Stop] REPORT_SLOP: calling RPC', { itemId: payload.itemId, platform: payload.platform });
+          logger.log('[Slop-Stop] REPORT_SLOP: calling RPC', { itemId: payload.itemId, platform: payload.platform, userIdentifier: payload.userIdentifier });
           let rpcResult;
           try {
             rpcResult = await supabase.rpc('report_slop', {
               p_item_id: payload.itemId,
               p_platform: payload.platform,
               p_reporter_hash: reporterHash,
+              p_user_identifier: payload.userIdentifier || null,
             });
           } catch (fetchError) {
             // Network errors or Supabase not configured - return success but with 0 report count
@@ -53,21 +55,36 @@ export const handleMessage = async (
           const { data, error } = rpcResult;
 
           if (error) {
-            const errorMessage = error.message || 'Unknown error';
-            const errorDetails = error.details ? ` Details: ${error.details}` : '';
-            const errorHint = error.hint ? ` Hint: ${error.hint}` : '';
+            // Safely extract error message, handling both string and object cases
+            const errorMessage = typeof error.message === 'string' 
+              ? error.message 
+              : (error.message ? JSON.stringify(error.message) : 'Unknown error');
+            
+            // Safely extract error details
+            const errorDetailsStr = error.details 
+              ? (typeof error.details === 'string' ? error.details : JSON.stringify(error.details))
+              : '';
+            
+            // Safely extract error hint
+            const errorHintStr = error.hint 
+              ? (typeof error.hint === 'string' ? error.hint : JSON.stringify(error.hint))
+              : '';
+            
+            const fullErrorMsg = errorMessage + (errorDetailsStr ? ` Details: ${errorDetailsStr}` : '') + (errorHintStr ? ` Hint: ${errorHintStr}` : '');
+            
             console.error('[Slop-Stop] REPORT_SLOP: RPC returned error', { 
               errorMessage, 
-              errorDetails, 
-              errorHint, 
+              errorDetails: errorDetailsStr, 
+              errorHint: errorHintStr, 
               itemId: payload.itemId,
-              platform: payload.platform 
+              platform: payload.platform,
+              fullError: fullErrorMsg
             });
             sendResponse({ success: false, error: errorMessage });
             return true;
           }
 
-          console.log('[Slop-Stop] REPORT_SLOP: success', { itemId: payload.itemId, reportCount: data || 0 });
+          logger.log('[Slop-Stop] REPORT_SLOP: success', { itemId: payload.itemId, reportCount: data || 0 });
           sendResponse({ success: true, reportCount: data || 0 });
           return true;
         } catch (error) {
@@ -97,6 +114,7 @@ export const handleMessage = async (
               p_item_id: payload.url,
               p_platform: 'website' as Platform,
               p_reporter_hash: reporterHash,
+              p_user_identifier: null, // Websites don't have user identifiers, domain is extracted in RPC
             });
           } catch (fetchError) {
             // Network errors or Supabase not configured - return success but with 0 report count
@@ -109,12 +127,26 @@ export const handleMessage = async (
           const { data, error } = rpcResult;
 
           if (error) {
-            const errorMessage = error.message || 'Unknown error';
-            const errorDetails = error.details ? ` Details: ${error.details}` : '';
-            const errorHint = error.hint ? ` Hint: ${error.hint}` : '';
+            // Safely extract error message, handling both string and object cases
+            const errorMessage = typeof error.message === 'string' 
+              ? error.message 
+              : (error.message ? JSON.stringify(error.message) : 'Unknown error');
+            
+            // Safely extract error details
+            const errorDetailsStr = error.details 
+              ? (typeof error.details === 'string' ? error.details : JSON.stringify(error.details))
+              : '';
+            
+            // Safely extract error hint
+            const errorHintStr = error.hint 
+              ? (typeof error.hint === 'string' ? error.hint : JSON.stringify(error.hint))
+              : '';
+            
+            const fullErrorMsg = errorMessage + (errorDetailsStr ? ` Details: ${errorDetailsStr}` : '') + (errorHintStr ? ` Hint: ${errorHintStr}` : '');
+            
             // Only log non-network errors
             if (!errorMessage.includes('Failed to fetch') && !errorMessage.includes('NetworkError')) {
-              console.error('Error reporting website:', errorMessage + errorDetails + errorHint);
+              console.error('Error reporting website:', fullErrorMsg);
             }
             sendResponse({ success: false, error: errorMessage, shouldBlock: false });
             return true;
@@ -239,9 +271,17 @@ export const handleMessage = async (
           });
 
           if (error) {
-            const errorMessage = error.message || 'Unknown error';
-            const errorDetails = error.details ? ` Details: ${error.details}` : '';
-            sendResponse({ success: false, error: errorMessage + errorDetails });
+            // Safely extract error message, handling both string and object cases
+            const errorMessage = typeof error.message === 'string' 
+              ? error.message 
+              : (error.message ? JSON.stringify(error.message) : 'Unknown error');
+            
+            // Safely extract error details
+            const errorDetailsStr = error.details 
+              ? (typeof error.details === 'string' ? error.details : JSON.stringify(error.details))
+              : '';
+            
+            sendResponse({ success: false, error: errorMessage + (errorDetailsStr ? ` Details: ${errorDetailsStr}` : '') });
             return true;
           }
 
@@ -259,7 +299,19 @@ export const handleMessage = async (
         return true;
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    // Safely extract error message, handling both Error objects and other types
+    let errorMessage: string;
+    if (error instanceof Error) {
+      errorMessage = error.message || 'Unknown error';
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    } else if (error && typeof error === 'object') {
+      // Try to extract message from error object, or stringify if needed
+      errorMessage = (error as any).message || JSON.stringify(error);
+    } else {
+      errorMessage = String(error);
+    }
+    
     const errorStack = error instanceof Error ? error.stack : '';
     console.error('Error handling message:', errorMessage, errorStack || '', error);
     sendResponse({ error: errorMessage });

@@ -7,6 +7,7 @@ import { detectPlatform } from '../shared/utils';
 import { createSlopCurtain } from './slop-curtain';
 import { initializeHotkeys } from './hotkeys';
 import { findLinkedInPostContainer } from './linkedin-post-finder';
+import { logger } from '../shared/logger';
 
 interface ProcessedItem {
   element: HTMLElement;
@@ -43,40 +44,69 @@ const handleContextInvalidated = (): void => {
   if (!isExtensionContextValid) return;
   
   isExtensionContextValid = false;
-  console.warn('[Slop-Stop] Extension context invalidated, stopping evaluation');
+  // Silently handle context invalidation - this is expected when extension is reloaded/updated
+  // No need to log as it's not an error condition
   
   // Clean up all overlays and restore elements
   processedItems.forEach((item) => {
     if (item.overlay) {
       // Clean up overlay event listeners
       if ((item.overlay as any).__slopCleanup) {
-        (item.overlay as any).__slopCleanup();
+        try {
+          (item.overlay as any).__slopCleanup();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
       }
       if (item.overlay.parentNode) {
-        item.overlay.parentNode.removeChild(item.overlay);
+        try {
+          item.overlay.parentNode.removeChild(item.overlay);
+        } catch (e) {
+          // Ignore removal errors
+        }
       }
     }
     if (item.element) {
-      item.element.style.opacity = '';
-      item.element.style.visibility = '';
-      item.element.style.pointerEvents = '';
+      try {
+        item.element.style.opacity = '';
+        item.element.style.visibility = '';
+        item.element.style.pointerEvents = '';
+      } catch (e) {
+        // Ignore style restoration errors
+      }
     }
   });
   
   processedItems.clear();
   
   // Remove all trash icons
-  document.querySelectorAll('[data-slop-trash-icon]').forEach((icon) => {
-    icon.remove();
-  });
+  try {
+    document.querySelectorAll('[data-slop-trash-icon]').forEach((icon) => {
+      try {
+        icon.remove();
+      } catch (e) {
+        // Ignore individual removal errors
+      }
+    });
+  } catch (e) {
+    // Ignore query errors
+  }
   
   // Remove all overlays and clean up their listeners
-  document.querySelectorAll('[data-slop-overlay]').forEach((overlay) => {
-    if ((overlay as any).__slopCleanup) {
-      (overlay as any).__slopCleanup();
-    }
-    overlay.remove();
-  });
+  try {
+    document.querySelectorAll('[data-slop-overlay]').forEach((overlay) => {
+      try {
+        if ((overlay as any).__slopCleanup) {
+          (overlay as any).__slopCleanup();
+        }
+        overlay.remove();
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    });
+  } catch (e) {
+    // Ignore query errors
+  }
 };
 
 const getAdapter = (): PlatformAdapter => {
@@ -112,18 +142,36 @@ const checkSlopStatus = async (itemId: string, platform: Platform): Promise<{ is
   
   return new Promise((resolve) => {
     try {
+      // Check if runtime is still available before sending message
+      if (!chrome.runtime || !chrome.runtime.sendMessage) {
+        handleContextInvalidated();
+        resolve({ isSlop: false, reportCount: 0 });
+        return;
+      }
+
       chrome.runtime.sendMessage(
         {
           type: MessageType.GET_SLOP_STATUS,
           payload: { itemId, platform },
         },
         (response) => {
+          // Check if context is still valid before processing response
+          if (!isExtensionContextValid) {
+            resolve({ isSlop: false, reportCount: 0 });
+            return;
+          }
+
           if (chrome.runtime.lastError) {
             if (isContextInvalidated(chrome.runtime.lastError)) {
               handleContextInvalidated();
             } else {
+              // Only log non-context-invalidation errors
               const errorMsg = chrome.runtime.lastError.message || 'Unknown error';
-              console.error('[Slop-Stop] Error checking slop status:', errorMsg);
+              if (!errorMsg.includes('Extension context invalidated') && 
+                  !errorMsg.includes('message port closed') &&
+                  !errorMsg.includes('Receiving end does not exist')) {
+                console.error('[Slop-Stop] Error checking slop status:', errorMsg);
+              }
             }
             resolve({ isSlop: false, reportCount: 0 });
             return;
@@ -133,7 +181,9 @@ const checkSlopStatus = async (itemId: string, platform: Platform): Promise<{ is
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Extension context invalidated')) {
+      if (errorMessage.includes('Extension context invalidated') ||
+          errorMessage.includes('message port closed') ||
+          errorMessage.includes('Receiving end does not exist')) {
         handleContextInvalidated();
       } else {
         console.error('[Slop-Stop] Exception checking slop status:', errorMessage);
@@ -143,32 +193,66 @@ const checkSlopStatus = async (itemId: string, platform: Platform): Promise<{ is
   });
 };
 
-const reportSlop = async (itemId: string, platform: Platform): Promise<void> => {
+const reportSlop = async (itemId: string, platform: Platform, element?: HTMLElement, adapter?: PlatformAdapter): Promise<void> => {
   if (!isExtensionContextValid) {
-    console.warn('[Slop-Stop] reportSlop: context invalidated, returning');
     return Promise.resolve(); // Silently resolve instead of rejecting
+  }
+  
+  // Check if runtime is still available before sending message
+  if (!chrome.runtime || !chrome.runtime.sendMessage) {
+    handleContextInvalidated();
+    return Promise.resolve();
+  }
+  
+  // Extract user identifier if element and adapter are provided
+  let userIdentifier: string | null = null;
+  if (element && adapter) {
+    try {
+      userIdentifier = adapter.getUserIdentifier(element);
+    } catch (error) {
+      logger.warn('[Slop-Stop] Error extracting user identifier:', error);
+    }
   }
   
   return new Promise((resolve, reject) => {
     try {
-      console.log('[Slop-Stop] reportSlop: sending message', { itemId, platform });
+      logger.log('[Slop-Stop] reportSlop: sending message', { itemId, platform, userIdentifier });
       chrome.runtime.sendMessage(
         {
           type: MessageType.REPORT_SLOP,
-          payload: { itemId, platform },
+          payload: { itemId, platform, userIdentifier: userIdentifier || undefined },
         },
         (response) => {
+          // Check if context is still valid before processing response
+          if (!isExtensionContextValid) {
+            resolve(); // Silently resolve
+            return;
+          }
+
           if (chrome.runtime.lastError) {
-            console.error('[Slop-Stop] reportSlop: chrome.runtime.lastError', chrome.runtime.lastError);
             if (isContextInvalidated(chrome.runtime.lastError)) {
               handleContextInvalidated();
               resolve(); // Silently resolve instead of rejecting
             } else {
+              // Only log non-context-invalidation errors
+              const errorMsg = chrome.runtime.lastError.message || 'Unknown error';
+              if (!errorMsg.includes('Extension context invalidated') && 
+                  !errorMsg.includes('message port closed') &&
+                  !errorMsg.includes('Receiving end does not exist')) {
+                console.error('[Slop-Stop] reportSlop: chrome.runtime.lastError', chrome.runtime.lastError);
+              }
               reject(chrome.runtime.lastError);
             }
             return;
           }
-          console.log('[Slop-Stop] reportSlop: received response', response);
+          
+          // Check context again before processing response
+          if (!isExtensionContextValid) {
+            resolve();
+            return;
+          }
+
+          logger.log('[Slop-Stop] reportSlop: received response', response);
           if (response && response.error) {
             console.error('[Slop-Stop] reportSlop: response contains error', response.error);
             reject(new Error(response.error));
@@ -179,16 +263,19 @@ const reportSlop = async (itemId: string, platform: Platform): Promise<void> => 
             reject(new Error(response.error || 'Report failed'));
             return;
           }
-          console.log('[Slop-Stop] reportSlop: success', response);
+          logger.log('[Slop-Stop] reportSlop: success', response);
           resolve();
         }
       );
     } catch (error) {
-      console.error('[Slop-Stop] reportSlop: exception', error);
-      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Extension context invalidated') ||
+          errorMessage.includes('message port closed') ||
+          errorMessage.includes('Receiving end does not exist')) {
         handleContextInvalidated();
         resolve(); // Silently resolve instead of rejecting
       } else {
+        console.error('[Slop-Stop] reportSlop: exception', error);
         reject(error);
       }
     }
@@ -202,17 +289,36 @@ const reportWebsite = async (): Promise<{ shouldBlock: boolean; reportCount: num
   
   return new Promise((resolve) => {
     try {
+      // Check if runtime is still available before sending message
+      if (!chrome.runtime || !chrome.runtime.sendMessage) {
+        handleContextInvalidated();
+        resolve({ shouldBlock: false, reportCount: 0 });
+        return;
+      }
+
       chrome.runtime.sendMessage(
         {
           type: MessageType.REPORT_WEBSITE,
           payload: { url: window.location.href },
         },
         (response) => {
+          // Check if context is still valid before processing response
+          if (!isExtensionContextValid) {
+            resolve({ shouldBlock: false, reportCount: 0 });
+            return;
+          }
+
           if (chrome.runtime.lastError) {
             if (isContextInvalidated(chrome.runtime.lastError)) {
               handleContextInvalidated();
             } else {
-              console.error('Error reporting website:', chrome.runtime.lastError);
+              // Only log non-context-invalidation errors
+              const errorMsg = chrome.runtime.lastError.message || 'Unknown error';
+              if (!errorMsg.includes('Extension context invalidated') && 
+                  !errorMsg.includes('message port closed') &&
+                  !errorMsg.includes('Receiving end does not exist')) {
+                console.error('Error reporting website:', chrome.runtime.lastError);
+              }
             }
             resolve({ shouldBlock: false, reportCount: 0 });
             return;
@@ -221,8 +327,13 @@ const reportWebsite = async (): Promise<{ shouldBlock: boolean; reportCount: num
         }
       );
     } catch (error) {
-      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Extension context invalidated') ||
+          errorMessage.includes('message port closed') ||
+          errorMessage.includes('Receiving end does not exist')) {
         handleContextInvalidated();
+      } else {
+        console.error('Error in reportWebsite:', errorMessage);
       }
       resolve({ shouldBlock: false, reportCount: 0 });
     }
@@ -249,13 +360,13 @@ const processItem = async (element: HTMLElement, adapter: PlatformAdapter, force
   
   // Validate itemId: must exist and not be empty
   if (!itemId || itemId.trim().length === 0) {
-    console.warn('[Slop-Stop] Invalid itemId (empty or null):', { itemId, platform: adapter.getPlatformName(), elementTagName: element.tagName });
+    logger.warn('[Slop-Stop] Invalid itemId (empty or null):', { itemId, platform: adapter.getPlatformName(), elementTagName: element.tagName });
     return;
   }
   
   // For YouTube, validate that itemId is at least 11 characters (YouTube video IDs are 11 chars)
   if (adapter.getPlatformName() === 'youtube' && itemId.length < 11) {
-    console.warn('[Slop-Stop] Invalid YouTube video ID (too short):', { 
+    logger.warn('[Slop-Stop] Invalid YouTube video ID (too short):', { 
       itemId, 
       length: itemId.length, 
       platform: adapter.getPlatformName(),
@@ -280,7 +391,7 @@ const processItem = async (element: HTMLElement, adapter: PlatformAdapter, force
         
         // Debug logging for YouTube
         if (adapter.getPlatformName() === 'youtube') {
-          console.log('[Slop-Stop] YouTube: Updated processed item element:', {
+          logger.log('[Slop-Stop] YouTube: Updated processed item element:', {
             itemId,
             oldElementTagName: existingItemByItemId.element.tagName,
             newElementTagName: element.tagName,
@@ -332,7 +443,7 @@ const processItem = async (element: HTMLElement, adapter: PlatformAdapter, force
 
   // Debug logging for YouTube to track slop status checking
   if (platform === 'youtube') {
-    console.log('[Slop-Stop] YouTube slop status check:', {
+    logger.log('[Slop-Stop] YouTube slop status check:', {
       itemId,
       isSlop: status.isSlop,
       reportCount: status.reportCount,
@@ -469,7 +580,7 @@ const processItem = async (element: HTMLElement, adapter: PlatformAdapter, force
     },
     onReport: async () => {
       try {
-        await reportSlop(itemId, platform).catch(() => {
+        await reportSlop(itemId, platform, element, adapter).catch(() => {
           // Silently handle errors - context invalidated is already handled
         });
         // Counter removed - no longer updating UI
@@ -494,7 +605,7 @@ const processItem = async (element: HTMLElement, adapter: PlatformAdapter, force
   
   // Debug logging for YouTube to track overlay creation
   if (platform === 'youtube') {
-    console.log('[Slop-Stop] YouTube overlay created:', {
+    logger.log('[Slop-Stop] YouTube overlay created:', {
       itemId,
       elementTagName: element.tagName,
       elementClassName: element.className?.substring(0, 50),
@@ -611,7 +722,7 @@ const addTrashIconToItem = (element: HTMLElement, adapter: PlatformAdapter): voi
     // #endregion
     
     if (!isExtensionContextValid) {
-      console.warn('[Slop-Stop] trashIcon click: context invalidated');
+      logger.warn('[Slop-Stop] trashIcon click: context invalidated');
       return;
     }
     
@@ -625,7 +736,7 @@ const addTrashIconToItem = (element: HTMLElement, adapter: PlatformAdapter): voi
       
       // Validate itemId: must exist and not be empty
       if (!itemId || itemId.trim().length === 0) {
-        console.warn('[Slop-Stop] Invalid itemId when reporting slop (empty or null):', { 
+        logger.warn('[Slop-Stop] Invalid itemId when reporting slop (empty or null):', { 
           itemId, 
           platform: adapter.getPlatformName(), 
           elementTagName: element.tagName,
@@ -636,7 +747,7 @@ const addTrashIconToItem = (element: HTMLElement, adapter: PlatformAdapter): voi
       
       // For YouTube, validate that itemId is at least 11 characters (YouTube video IDs are 11 chars)
       if (adapter.getPlatformName() === 'youtube' && itemId.length < 11) {
-        console.warn('[Slop-Stop] Invalid YouTube video ID when reporting slop (too short):', { 
+        logger.warn('[Slop-Stop] Invalid YouTube video ID when reporting slop (too short):', { 
           itemId, 
           length: itemId.length,
           platform: adapter.getPlatformName(), 
@@ -649,7 +760,7 @@ const addTrashIconToItem = (element: HTMLElement, adapter: PlatformAdapter): voi
       if (isExtensionContextValid) {
         try {
           // Step 1: Report to backend
-          await reportSlop(itemId, adapter.getPlatformName());
+          await reportSlop(itemId, adapter.getPlatformName(), element, adapter);
           
           // Step 2: Immediately trigger Ghost Container UI for immediate relief
           await processItem(element, adapter, true).catch((error) => {
@@ -740,7 +851,7 @@ const addTrashIconToItem = (element: HTMLElement, adapter: PlatformAdapter): voi
   const trashIconComputed = window.getComputedStyle(trashIcon);
   const logDataTrashAdded = {location:'content-main.ts:613',message:'Trash icon added successfully',data:{elementTagName:element.tagName,elementClassName:element.className?.substring(0,50),elementId:element.id?.substring(0,30),elementTextLength:element.textContent?.length,platform:adapter.getPlatformName(),elementPosition:computedStyleAfter.position,elementOverflow:computedStyleAfter.overflow,elementZIndex:computedStyleAfter.zIndex,trashIconPosition:trashIconComputed.position,trashIconOpacity:trashIconComputed.opacity,trashIconVisibility:trashIconComputed.visibility,trashIconZIndex:trashIconComputed.zIndex,trashIconDisplay:trashIconComputed.display,trashIconInDOM:trashIcon.isConnected,timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'}};
   fetch('http://127.0.0.1:7243/ingest/b2719b1f-0fda-42ef-a1bf-85265994e0a0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logDataTrashAdded)}).catch(()=>{});
-  console.log('[Slop-Stop] Trash icon added to element:', {
+  logger.log('[Slop-Stop] Trash icon added to element:', {
     tagName: element.tagName,
     className: element.className?.substring(0, 50),
     textLength: element.textContent?.length
@@ -785,7 +896,7 @@ const initializeContentScript = (): void => {
       return;
     }
     
-    console.log(`[Slop-Stop] handleNewItems called with ${items.length} items`);
+    logger.log(`[Slop-Stop] handleNewItems called with ${items.length} items`);
     
     // #region agent log
     const logData7 = {location:'content-main.ts:569',message:'handleNewItems called',data:{itemsCount:items.length,items:items.slice(0,3).map(el=>({tagName:el.tagName,className:el.className?.substring(0,50),id:el.id?.substring(0,30)})),timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'}};
@@ -804,7 +915,7 @@ const initializeContentScript = (): void => {
       
       // Debug logging for YouTube to track itemId extraction
       if (adapter.getPlatformName() === 'youtube') {
-        console.log('[Slop-Stop] YouTube item processing:', {
+        logger.log('[Slop-Stop] YouTube item processing:', {
           itemIndex: i,
           itemId: itemId,
           itemIdLength: itemId?.length,
@@ -821,7 +932,7 @@ const initializeContentScript = (): void => {
       
       // Skip items without valid IDs (they can't be tracked properly)
       if (!itemId || itemId.trim().length === 0) {
-        console.log('[Slop-Stop] Skipping item without ID:', {
+        logger.log('[Slop-Stop] Skipping item without ID:', {
           tagName: item.tagName,
           className: item.className?.substring(0, 50),
           textLength: item.textContent?.length,
@@ -836,7 +947,7 @@ const initializeContentScript = (): void => {
       
       // For YouTube, validate that itemId is at least 11 characters (YouTube video IDs are 11 chars)
       if (adapter.getPlatformName() === 'youtube' && itemId.length < 11) {
-        console.warn('[Slop-Stop] Invalid YouTube video ID (too short):', {
+        logger.warn('[Slop-Stop] Invalid YouTube video ID (too short):', {
           itemId,
           length: itemId.length,
           tagName: item.tagName,
@@ -856,7 +967,7 @@ const initializeContentScript = (): void => {
                                 document.querySelector(`[data-slop-overlay="true"] [data-slop-trash-icon]`);
       if (!existingTrashIcon) {
         try {
-          console.log('[Slop-Stop] Adding trash icon to item:', {
+          logger.log('[Slop-Stop] Adding trash icon to item:', {
             itemId,
             tagName: item.tagName,
             className: item.className?.substring(0, 50),
@@ -880,7 +991,7 @@ const initializeContentScript = (): void => {
           // #endregion
         }
       } else {
-        console.log('[Slop-Stop] Trash icon already exists for item:', {
+        logger.log('[Slop-Stop] Trash icon already exists for item:', {
           itemId,
           tagName: item.tagName
         });
@@ -1018,7 +1129,7 @@ const initializeContentScript = (): void => {
       if (!isExtensionContextValid) return;
       try {
         try {
-          await reportSlop(itemId, adapter.getPlatformName());
+          await reportSlop(itemId, adapter.getPlatformName(), element, adapter);
         } catch (error) {
           // Silently handle errors - context invalidated is already handled
         }
@@ -1108,7 +1219,7 @@ const initializeContentScript = (): void => {
           try {
             const itemId = adapter.getItemId(lastRightClickedElement!);
             if (itemId && isExtensionContextValid) {
-              await reportSlop(itemId, adapter.getPlatformName());
+              await reportSlop(itemId, adapter.getPlatformName(), lastRightClickedElement, adapter);
               if (isExtensionContextValid && lastRightClickedElement && lastRightClickedElement.isConnected) {
                 await processItem(lastRightClickedElement, adapter, true).catch(() => {});
               }
@@ -1139,7 +1250,7 @@ try {
   if (isInIframe || isAboutBlank) {
     // Running in an iframe or sandboxed frame - exit early to prevent errors
     // Content scripts should only run in the main frame
-    console.log('[Slop-Stop] Content script skipped: running in iframe or sandboxed frame', {
+    logger.log('[Slop-Stop] Content script skipped: running in iframe or sandboxed frame', {
       isInIframe,
       isAboutBlank,
       location: window.location.href
@@ -1154,5 +1265,5 @@ try {
   }
 } catch (error) {
   // If we can't determine the frame context, skip initialization to be safe
-  console.warn('[Slop-Stop] Error checking frame context, skipping initialization:', error);
+  logger.warn('[Slop-Stop] Error checking frame context, skipping initialization:', error);
 }

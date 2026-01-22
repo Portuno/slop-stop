@@ -38,6 +38,47 @@ export class TwitterAdapter extends BaseAdapter {
     return null;
   }
 
+  getUserIdentifier(element: HTMLElement): string | null {
+    // Strategy 1: Look for profile links in the tweet header
+    // Twitter/X uses links like twitter.com/username or x.com/username
+    const profileLinks = element.querySelectorAll<HTMLAnchorElement>('a[href*="/"]');
+    for (const link of Array.from(profileLinks)) {
+      const href = link.href;
+      // Match patterns like twitter.com/username or x.com/username (but not /status/, /i/, etc.)
+      const match = href.match(/(?:twitter\.com|x\.com)\/([^\/\?]+)/);
+      if (match && match[1]) {
+        const username = match[1];
+        // Skip common non-username paths
+        if (!['status', 'i', 'home', 'explore', 'notifications', 'messages', 'search', 'settings', 'logout'].includes(username.toLowerCase())) {
+          return username;
+        }
+      }
+    }
+
+    // Strategy 2: Look for data attributes that might contain username
+    const userElement = element.querySelector('[data-testid="User-Name"]');
+    if (userElement) {
+      const link = userElement.querySelector<HTMLAnchorElement>('a[href*="/"]');
+      if (link) {
+        const match = link.href.match(/(?:twitter\.com|x\.com)\/([^\/\?]+)/);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+    }
+
+    // Strategy 3: Look for @ mentions in the tweet text (less reliable, but fallback)
+    const textContent = element.textContent || '';
+    const mentionMatch = textContent.match(/@([a-zA-Z0-9_]+)/);
+    if (mentionMatch && mentionMatch[1]) {
+      // This is less reliable as it might be a mention, not the author
+      // But we'll use it as a last resort
+      return mentionMatch[1];
+    }
+
+    return null;
+  }
+
   createGhostContainer(originalElement: HTMLElement): HTMLElement {
     // The Anchor: Set the main post container to position: relative
     // IMPORTANT: Keep the container visible and positioned correctly

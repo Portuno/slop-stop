@@ -204,7 +204,7 @@ const showWebsiteBlockModal = (reportCount: number): void => {
   const message = document.createElement('p');
   message.className = 'slop-website-block-message';
   message.textContent =
-    'Human curators have identified this entire website as a primary source of AI-generated filler or low-quality content.';
+    'Human curators have identified this entire website as a primary source of filler or low-quality content.';
 
   // Report counter badge
   const counterBadge = document.createElement('div');

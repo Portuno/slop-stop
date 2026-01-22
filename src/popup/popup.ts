@@ -37,7 +37,7 @@ const loadSettings = async () => {
       }
     }
   } catch (error) {
-    console.error('Error loading settings:', error);
+    // logger.error('Error loading settings:', error);
   }
 };
 
@@ -87,12 +87,12 @@ feedbackForm?.addEventListener('submit', async (e) => {
   const feedback = feedbackInput.value.trim();
 
   if (!feedback) {
-    showStatus('Comparte feedback antes de enviarlo.', true, feedbackStatus);
+    showStatus('Please share feedback before submitting.', true, feedbackStatus);
     return;
   }
 
   feedbackButton.disabled = true;
-  feedbackButton.textContent = 'Enviando...';
+  feedbackButton.textContent = 'Sending...';
 
   try {
     const response = await chrome.runtime.sendMessage({
@@ -101,18 +101,18 @@ feedbackForm?.addEventListener('submit', async (e) => {
     });
 
     if (response?.success) {
-      showStatus('Feedback enviado. ¡Gracias!', false, feedbackStatus);
+      showStatus('Feedback sent. Thank you!', false, feedbackStatus);
       feedbackInput.value = '';
     } else {
-      const errorMessage = response?.error || 'No se pudo enviar el feedback.';
+      const errorMessage = response?.error || 'Could not send feedback.';
       showStatus(errorMessage, true, feedbackStatus);
     }
   } catch (error) {
-    console.error('Error sending feedback:', error);
-    showStatus('No se pudo enviar el feedback.', true, feedbackStatus);
+    // logger.error('Error sending feedback:', error);
+    showStatus('Could not send feedback.', true, feedbackStatus);
   } finally {
     feedbackButton.disabled = false;
-    feedbackButton.textContent = 'Enviar feedback';
+    feedbackButton.textContent = 'Send feedback';
   }
 });
 

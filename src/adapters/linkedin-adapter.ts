@@ -88,7 +88,7 @@ export class LinkedInAdapter extends BaseAdapter {
       const found = mainFeed.querySelector(selector);
       if (found) {
         scrollContainer = found as HTMLElement;
-        console.log(`[Slop-Stop] Found scroll container using selector: ${selector}`);
+        // logger.log(`[Slop-Stop] Found scroll container using selector: ${selector}`);
         break;
       }
     }
@@ -115,7 +115,7 @@ export class LinkedInAdapter extends BaseAdapter {
     // If still no scroll container found, use main#workspace directly
     if (!scrollContainer) {
       scrollContainer = mainFeed as HTMLElement;
-      console.log('[Slop-Stop] Using main#workspace as scroll container');
+      // logger.log('[Slop-Stop] Using main#workspace as scroll container');
     }
     
     const allItems: HTMLElement[] = [];
@@ -124,7 +124,7 @@ export class LinkedInAdapter extends BaseAdapter {
     // Strategy: Find all divs/sections within scroll container and filter by post characteristics
     // But skip the scroll container itself and its immediate children if they're too large
     const candidateElements = Array.from(scrollContainer.querySelectorAll('div, section, article'));
-    console.log(`[Slop-Stop] Found ${candidateElements.length} candidate elements in scroll container`);
+    // logger.log(`[Slop-Stop] Found ${candidateElements.length} candidate elements in scroll container`);
     
     // Sort candidates by size (largest first) to detect parent containers before children
     // This helps ensure we find the full post container, not just sub-elements
@@ -261,16 +261,17 @@ export class LinkedInAdapter extends BaseAdapter {
         
         allItems.push(htmlEl);
         
-        console.log(`[Slop-Stop] Found post by structure:`, {
-          tagName: htmlEl.tagName,
-          className: htmlEl.className?.substring(0, 100),
-          textLength,
-          buttonsCount,
-          imagesCount,
-          hasEngagementButtons,
-          hasProfileImage,
-          descendantsMarked: allDescendants.length
-        });
+        // Debug logging disabled in production
+        // logger.log(`[Slop-Stop] Found post by structure:`, {
+        //   tagName: htmlEl.tagName,
+        //   className: htmlEl.className?.substring(0, 100),
+        //   textLength,
+        //   buttonsCount,
+        //   imagesCount,
+        //   hasEngagementButtons,
+        //   hasProfileImage,
+        //   descendantsMarked: allDescendants.length
+        // });
         
         // #region agent log
         const logDataPost = {
@@ -307,7 +308,7 @@ export class LinkedInAdapter extends BaseAdapter {
     
     // If we found posts, return them
     if (allItems.length > 0) {
-      console.log(`[Slop-Stop] Found ${allItems.length} posts using structure-based detection`);
+      // logger.log(`[Slop-Stop] Found ${allItems.length} posts using structure-based detection`);
       
     // #region agent log
     const logDataReturn = {
@@ -341,7 +342,7 @@ export class LinkedInAdapter extends BaseAdapter {
     }
     
     // Fallback: Use aggressive DOM inspection as last resort
-    console.log('[Slop-Stop] No posts found with structure-based detection, using aggressive fallback...');
+    // logger.log('[Slop-Stop] No posts found with structure-based detection, using aggressive fallback...');
     
     // #region agent log
     const logDataFallback = {
@@ -472,7 +473,7 @@ export class LinkedInAdapter extends BaseAdapter {
       new Map(potentialPosts.map(p => [p.element, p])).values()
     );
     
-    console.log(`[Slop-Stop] Found ${uniquePotentialPosts.length} potential posts by aggressive fallback`);
+    // logger.log(`[Slop-Stop] Found ${uniquePotentialPosts.length} potential posts by aggressive fallback`);
     
     uniquePotentialPosts.forEach(({element}) => {
       if (!seen.has(element)) {
@@ -481,7 +482,7 @@ export class LinkedInAdapter extends BaseAdapter {
       }
     });
     
-    console.log(`[Slop-Stop] Total unique LinkedIn items found: ${allItems.length}`);
+    // logger.log(`[Slop-Stop] Total unique LinkedIn items found: ${allItems.length}`);
     
     // #region agent log
     const logDataReturn2 = {
@@ -663,6 +664,57 @@ export class LinkedInAdapter extends BaseAdapter {
     // Use a stable ID based on content hash and position (no timestamp/random)
     // This ensures the same post always gets the same ID
     return `linkedin-${position}-${Math.abs(hash)}`;
+  }
+
+  getUserIdentifier(element: HTMLElement): string | null {
+    // Strategy 1: Look for profile links with /in/ pattern
+    // LinkedIn uses links like linkedin.com/in/username-slug
+    const profileLinks = element.querySelectorAll<HTMLAnchorElement>('a[href*="/in/"]');
+    for (const link of Array.from(profileLinks)) {
+      const href = link.href;
+      // Match pattern: linkedin.com/in/username-slug
+      const match = href.match(/linkedin\.com\/in\/([^\/\?]+)/);
+      if (match && match[1]) {
+        const profileSlug = match[1];
+        // Skip common non-profile paths
+        if (!['feed', 'jobs', 'messaging', 'notifications', 'learning', 'my-items'].includes(profileSlug.toLowerCase())) {
+          return profileSlug;
+        }
+      }
+    }
+
+    // Strategy 2: Look for profile links in the post header/author section
+    // LinkedIn posts usually have the author's profile link near the top
+    const authorSection = element.querySelector('[data-testid="actor"], [class*="actor"], [class*="author"]');
+    if (authorSection) {
+      const authorLink = authorSection.querySelector<HTMLAnchorElement>('a[href*="/in/"]');
+      if (authorLink) {
+        const match = authorLink.href.match(/linkedin\.com\/in\/([^\/\?]+)/);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+    }
+
+    // Strategy 3: Search parent elements for profile links (up to 5 levels)
+    let parent = element.parentElement;
+    let depth = 0;
+    while (parent && depth < 5) {
+      const parentLinks = parent.querySelectorAll<HTMLAnchorElement>('a[href*="/in/"]');
+      for (const link of Array.from(parentLinks)) {
+        const match = link.href.match(/linkedin\.com\/in\/([^\/\?]+)/);
+        if (match && match[1]) {
+          const profileSlug = match[1];
+          if (!['feed', 'jobs', 'messaging', 'notifications', 'learning', 'my-items'].includes(profileSlug.toLowerCase())) {
+            return profileSlug;
+          }
+        }
+      }
+      parent = parent.parentElement;
+      depth++;
+    }
+
+    return null;
   }
 
   createGhostContainer(originalElement: HTMLElement): HTMLElement {

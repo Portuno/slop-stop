@@ -2,6 +2,7 @@ import { Platform, PlatformAdapter } from '../shared/types';
 
 export abstract class BaseAdapter implements PlatformAdapter {
   abstract getItemId(element: HTMLElement): string | null;
+  abstract getUserIdentifier(element: HTMLElement): string | null;
   abstract getItemSelector(): string;
   abstract getPlatformName(): Platform;
   abstract canHandleUrl(url: string): boolean;
@@ -45,7 +46,7 @@ export abstract class BaseAdapter implements PlatformAdapter {
           try {
             callback(items); // Pass all items so they get processed
           } catch (error) {
-            console.error('[Slop-Stop] Error in callback:', error);
+            // logger.error('[Slop-Stop] Error in callback:', error);
           }
           debounceTimer = null;
         }, DEBOUNCE_MS);

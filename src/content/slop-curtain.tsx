@@ -54,7 +54,7 @@ export const createSlopCurtain = (options: SlopCurtainOptions): HTMLElement => {
     const subtext = document.createElement('p');
     subtext.className = 'slop-curtain-subtext';
     subtext.textContent =
-      'Human curators have identified this entire website as a primary source of AI-generated filler or low-quality content.';
+      'Human curators have identified this entire website as a primary source of filler or low-quality content.';
 
     const counterBadge = document.createElement('div');
     counterBadge.className = 'slop-curtain-counter';
@@ -120,7 +120,7 @@ export const createSlopCurtain = (options: SlopCurtainOptions): HTMLElement => {
     const subtext = document.createElement('p');
     subtext.className = 'slop-curtain-subtext';
     subtext.textContent =
-      'This content was identified as AI-generated filler or low-quality slop by Human Resistance curators.';
+      'This content was identified as filler or low-quality slop by Human Resistance curators.';
 
     const counterBadge = document.createElement('div');
     counterBadge.className = 'slop-curtain-counter';

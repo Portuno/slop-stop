@@ -167,42 +167,42 @@
 <body>
   <h1>Stop-Slop HQ</h1>
 
-  <div class="card" aria-label="Sobre Stop-Slop">
-    <div class="tag"><span>🛡️</span> Unidos contra el slop</div>
-    <p class="cta">Únete a la resistencia: bloqueamos basura AI antes de que llegue a la gente.</p>
-    <p>Reporta con dos atajos y comparte feedback para mejorar cómo defendemos la red.</p>
-    <div class="hotkey-list" aria-label="Atajos de teclado">
-      <div class="hotkey" aria-label="Alt + S para marcar slop">
-        Alt + S <small>Marca piezas individuales</small>
+  <div class="card" aria-label="About Stop-Slop">
+    <div class="tag"><span>🛡️</span> United against slop</div>
+    <p class="cta">Join the resistance: we block slop before it reaches people.</p>
+    <p>Report with two shortcuts and share feedback to improve how we defend the web.</p>
+    <div class="hotkey-list" aria-label="Keyboard shortcuts">
+      <div class="hotkey" aria-label="Alt + S to mark slop">
+        Alt + S <small>Mark individual pieces</small>
       </div>
-      <div class="hotkey" aria-label="Alt + U para bloquear sitio">
-        Alt + U <small>Reporta todo el sitio</small>
+      <div class="hotkey" aria-label="Alt + U to block site">
+        Alt + U <small>Report entire site</small>
       </div>
     </div>
   </div>
 
-  <div class="card" aria-label="Configuración de reportes">
-    <h2>Umbral de reportes</h2>
-    <p class="muted">Número de reportes necesarios para bloquear un sitio.</p>
+  <div class="card" aria-label="Report settings">
+    <h2>Report threshold</h2>
+    <p class="muted">Number of reports needed to block a site.</p>
     <form id="settingsForm">
       <div class="form-group">
         <label for="reportLimit">Report Limit Threshold</label>
-        <input type="number" id="reportLimit" name="reportLimit" min="1" value="5" required aria-label="Número mínimo de reportes para bloquear">
+        <input type="number" id="reportLimit" name="reportLimit" min="1" value="5" required aria-label="Minimum number of reports to block">
       </div>
-      <button type="submit" id="saveButton" aria-label="Guardar configuración">Save Settings</button>
+      <button type="submit" id="saveButton" aria-label="Save settings">Save Settings</button>
     </form>
     <div id="status" class="status"></div>
   </div>
 
-  <div class="card" aria-label="Enviar feedback">
-    <h2>Feedback directo</h2>
-    <p class="muted">Cuéntanos qué mejorar o qué te encanta. Lo vemos al instante.</p>
+  <div class="card" aria-label="Send feedback">
+    <h2>Direct feedback</h2>
+    <p class="muted">Tell us what to improve or what you love. We see it instantly.</p>
     <form id="feedbackForm">
       <div class="form-group">
-        <label for="feedbackText">Tu mensaje</label>
-        <textarea id="feedbackText" name="feedbackText" placeholder="Comparte ideas, bugs o mejoras" aria-label="Caja de texto para enviar feedback" required></textarea>
+        <label for="feedbackText">Your message</label>
+        <textarea id="feedbackText" name="feedbackText" placeholder="Share ideas, bugs or improvements" aria-label="Text box to send feedback" required></textarea>
       </div>
-      <button type="submit" id="feedbackButton" aria-label="Enviar feedback">Enviar feedback</button>
+      <button type="submit" id="feedbackButton" aria-label="Send feedback">Send feedback</button>
     </form>
     <div id="feedbackStatus" class="status" aria-live="polite"></div>
   </div>

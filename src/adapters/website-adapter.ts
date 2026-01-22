@@ -25,6 +25,19 @@ export class WebsiteAdapter extends BaseAdapter {
     return window.location.href;
   }
 
+  getUserIdentifier(element: HTMLElement): string | null {
+    // For websites, extract the domain from the current URL
+    try {
+      const url = new URL(window.location.href);
+      // Return the hostname (domain) without www. prefix for consistency
+      const domain = url.hostname.replace(/^www\./, '');
+      return domain;
+    } catch (error) {
+      // If URL parsing fails, return null
+      return null;
+    }
+  }
+
   createGhostContainer(originalElement: HTMLElement): HTMLElement {
     const overlay = document.createElement('div');
     overlay.style.position = 'fixed';

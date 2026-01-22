@@ -52,6 +52,7 @@ const buildServiceWorker = async () => {
       'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL || ''),
       'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY || ''),
       'process.env.NODE_ENV': isWatch ? '"development"' : '"production"',
+      '__ENABLE_LOGS__': isWatch ? 'true' : 'false', // Disable logs in production
     },
   });
 };
@@ -65,6 +66,7 @@ const buildContentScript = async () => {
     globalName: 'StopSlopContent',
     define: {
       'process.env.NODE_ENV': isWatch ? '"development"' : '"production"',
+      '__ENABLE_LOGS__': isWatch ? 'true' : 'false', // Disable logs in production
     },
   });
 };
@@ -77,6 +79,7 @@ const buildPopup = async () => {
     format: 'iife',
     define: {
       'process.env.NODE_ENV': isWatch ? '"development"' : '"production"',
+      '__ENABLE_LOGS__': isWatch ? 'true' : 'false', // Disable logs in production
     },
   });
 };
