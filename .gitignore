@@ -2,3 +2,7 @@
 
 #Ignore cursor AI rules
 .cursor\rules\codacy.mdc
+
+# Ignore Cursor debug logs (may contain sensitive information)
+.cursor/debug.log
+.cursor/*.log

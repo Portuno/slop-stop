@@ -109,6 +109,12 @@
       background: #ccc;
       cursor: not-allowed;
     }
+    #supportButton {
+      background: #00b9fe;
+    }
+    #supportButton:hover {
+      background: #0099cc;
+    }
     .status {
       margin-top: 1rem;
       padding: 0.75rem;
@@ -206,7 +212,14 @@
     </form>
     <div id="feedbackStatus" class="status" aria-live="polite"></div>
   </div>
+
+  <div class="card" aria-label="Support us">
+    <h2>Support Us</h2>
+    <p class="muted">Help us keep Stop-Slop free and improving. Your support makes a difference!</p>
+    <button type="button" id="supportButton" aria-label="Support us on Ko-Fi">Support Us</button>
+  </div>
   
+  <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

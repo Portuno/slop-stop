@@ -11,6 +11,8 @@ const feedbackInput = document.getElementById('feedbackText') as HTMLTextAreaEle
 const feedbackButton = document.getElementById('feedbackButton') as HTMLButtonElement | null;
 const feedbackStatus = document.getElementById('feedbackStatus') as HTMLDivElement | null;
 
+const supportButton = document.getElementById('supportButton') as HTMLButtonElement | null;
+
 const showStatus = (message: string, isError = false, target?: HTMLDivElement | null) => {
   const destination = target ?? statusDiv;
   if (!destination) return;
@@ -116,4 +118,26 @@ feedbackForm?.addEventListener('submit', async (e) => {
   }
 });
 
+const initializeKoFi = () => {
+  if (typeof (window as any).kofiWidgetOverlay !== 'undefined') {
+    (window as any).kofiWidgetOverlay.draw('stopslop', {
+      'type': 'floating-chat',
+      'floating-chat.donateButton.text': 'Support Us',
+      'floating-chat.donateButton.background-color': '#00b9fe',
+      'floating-chat.donateButton.text-color': '#fff'
+    });
+  }
+};
+
+supportButton?.addEventListener('click', () => {
+  window.open('https://ko-fi.com/stopslop', '_blank');
+});
+
 loadSettings();
+
+// Initialize Ko-Fi widget after DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeKoFi);
+} else {
+  initializeKoFi();
+}
